@@ -1,25 +1,20 @@
-
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=700, initial-scale=1.0" />
-<title>Promoção</title>
+<title>Cupom de Desconto</title>
 
 <style>
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Regular.ttf') format('truetype');
   font-weight: 400;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Bold.ttf') format('truetype');
   font-weight: 700;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Black.ttf') format('truetype');
@@ -27,285 +22,236 @@
 }
 
 * {
-  text-transform: uppercase;
-  color: #2b4474;
   box-sizing: border-box;
+  font-family: Inter, sans-serif;
+  text-transform: uppercase;
 }
 
 body {
   margin: 0;
-  width: 700px;
-  height: 1058px;
-  font-family: 'Inter', sans-serif;
   background: transparent;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* CARD */
+/* ================= CARD ================= */
 .card {
   width: 700px;
   height: 1057.5px;
-  border: 8px solid #e0b84b;
-  border-radius: 40px;
-  padding-top: 60px;
-  padding-bottom: 30px;
-  padding-left: 40px;
-  padding-right: 40px;
-  position: relative;
-  overflow: hidden;
+  border: 6px solid #F2C94C;
+  border-radius: 48px;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: space-between;
-  background: #ffffff;
+  align-items: center;
+  padding: 60px 20px 30px 20px;
+  position: relative;
+  overflow: visible;
+  color: #1F3C6E;
 }
 
-/* SELO */
+/* ===== SELO ===== */
 .selo {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: -6px;
+  left: -6px;
   width: 130px;
   height: 65px;
-  margin: 0;
-  padding: 0;
+  z-index: 10;
 }
 
 .selo img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
-/* LOGO */
+/* ===== LOGO ===== */
 .logo {
-  text-align: center;
-  margin-bottom: 40px;
+  height: 154px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logo img {
-  max-width: 220px;
-  max-height: 120px;
+  max-height: 154px;
+  max-width: 520px;
+  object-fit: contain;
 }
 
-/* TARJA */
-.tarja {
-  margin-top: 35px;
-  background: #ff7a00;
-  color: #ffffff;
-  padding: 20px 70px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 54px;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.tarja span {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 54px;
-}
-
-/* TEXTO SUPERIOR */
-.texto-topo {
-  text-align: center;
-  font-size: 28px;
-  font-weight: 400;
-  margin-top: 50px;
-  margin-bottom: 70px;
+/* ===== TEXTO ===== */
+.condicao {
   max-width: 550px;
+  font-size: 28px;
+  text-align: center;
   line-height: 1.15;
-  word-break: break-word;
 }
 
-/* BLOCO DESCONTO */
-.bloco-desconto {
+/* ===== BENEFÍCIO ===== */
+.bloco-beneficio {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-}
-
-/* VALOR */
-.valor-container {
-  width: 100%;
-  height: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.valor-texto {
-  font-weight: 900;
-  font-size: 480px;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
 }
 
 .percentual {
-  /* Estilo para o elemento percentual, se houver */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.numero,
+.percent {
+  font-weight: 900;
+  font-size: clamp(120px, 25vw, 270px);
+}
+
+.percent {
+  margin-left: 6px;
 }
 
 .desconto {
-  margin-top: 10px;
+  margin-top: 1px;
+  font-size: clamp(40px, 5vw, 60px);
+  font-weight: 700;
 }
 
-/* CONTEÚDO INFERIOR */
-.conteudo-inferior {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
+/* ===== LEGAL ===== */
+.legal {
+  max-width: 550px;
+  font-size: 18px;
+  text-align: center;
+}
+
+/* ===== CUPOM BOX ===== */
+.cupom-box {
+  width: 640px;
+  height: 150px;
+  background: #16A7E0;
+  border-radius: 24px;
+  display: grid;
+  grid-template-columns: 120px 1fr;
   align-items: center;
 }
 
-/* LEGAL */
-.legal {
-  text-align: center;
-  font-size: 18px;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
-  margin-bottom: 30px;
-}
-
-/* CUPOM BOX */
-.cupom-box {
+/* LABEL */
+.cupom-label {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  background: #0066cc;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 30px;
 }
 
 .cupom-label span {
+  transform: translateX(-8px) rotate(-90deg);
   font-size: 30px;
   font-weight: 700;
   color: #ffffff;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
 }
 
+/* ÁREA DO TEXTO */
+.cupom-codigo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 40px;
+  overflow: hidden;
+}
+
+/* TEXTO */
 #cupom-text {
-  font-size: 80px;
-  font-weight: 700;
+  font-size: 100px;
+  font-weight: 900;
+  transform: translateX(-25px);
   color: #ffffff;
-  text-align: center;
-  flex: 1;
-  margin: 0 20px;
+  white-space: nowrap;
 }
 
-/* RODAPÉ */
+/* ===== RODAPÉ ===== */
 .rodape {
   text-align: center;
+  min-height: 70px;
 }
 
-.uf, .urn {
-  font-size: clamp(20px, 2vw, 24px);
+.uf {
+  font-size: 22px;
   font-weight: 700;
 }
 
-.segmento-container {
-  margin-top: 15px;
+.segmento-linha {
+  margin-top: 10px;
+  font-size: 18px;
 }
 
-.segmento-label {
-  margin-top: 12px;
-  font-size: 18px;
-  font-weight: 400;
-  display: inline;
-}
-
-#segmento-data {
-  font-size: 18px;
+.segmento-valor {
   font-weight: 700;
-  display: inline;
 }
-
 </style>
 </head>
 
 <body>
-
 <div class="card">
 
   <div class="selo">
-    <img src="{{SELO}}" />
+    <img src="{{SELO}}" alt="Selo">
   </div>
 
   <div class="logo">
-    <img src="{{LOGO}}" />
+    <img src="{{LOGO}}" alt="Logo">
   </div>
 
-  <div class="tarja">
-    <span>PROMOÇÃO</span>
+  <div class="condicao">{{TEXTO}}</div>
+
+  <div class="bloco-beneficio">
+    <div class="percentual">
+      <div class="numero">{{VALOR}}</div>
+      <div class="percent">%</div>
+    </div>
+    <div class="desconto">DE DESCONTO</div>
   </div>
 
-  <div class="texto-topo">
-    {{TEXTO}}
-  </div>
+  <div class="legal">{{LEGAL}}</div>
 
-  <div class="bloco-desconto">
-    <div class="valor-container" id="valor-container">
-      <div class="valor-texto" id="valor-texto">
-        {{VALOR}}
-      </div>
+  <div class="cupom-box">
+    <div class="cupom-label">
+      <span>CUPOM</span>
+    </div>
+
+    <div class="cupom-codigo">
+      <span id="cupom-text">{{CUPOM}}</span>
     </div>
   </div>
 
-  <div class="conteudo-inferior">
-    <div class="legal">
-      {{LEGAL}}
-    </div>
-
-    <div class="rodape">
-      <div class="uf">{{UF}}</div>
-      <div class="urn">{{URN}}</div>
-      <div class="segmento-container">
-        <span class="segmento-label">SEGMENTO DE CLIENTES:</span>
-        <span id="segmento-data">{{SEGMENTO}}</span>
-      </div>
+  <div class="rodape">
+    <div class="uf">{{UF}}</div>
+    <div class="uf">{{URN}}</div>
+    <div class="segmento-linha">
+      SEGMENTO DE CLIENTES:
+      <span class="segmento-valor">{{SEGMENTO}}</span>
     </div>
   </div>
 
 </div>
 
 <script>
-window.addEventListener("load", function () {
+(function () {
+  const el = document.getElementById("cupom-text");
+  if (!el) return;
 
-  const container = document.getElementById("valor-container");
-  const texto = document.getElementById("valor-texto");
-  const segmentoContainer = document.querySelector(".segmento-container");
-  const segmentoData = document.getElementById("segmento-data");
+  const container = el.parentElement;
 
-  if (!container || !texto) return;
+  let fontSize = 100;
+  const minFontSize = 30;
 
-  let fontSize = 80;
-  texto.style.fontSize = fontSize + "px";
+  el.style.fontSize = fontSize + "px";
 
-  while (texto.scrollWidth > container.clientWidth && fontSize > 80) {
-    fontSize -= 6;
-    texto.style.fontSize = fontSize + "px";
+  while (el.scrollWidth > container.clientWidth && fontSize > minFontSize) {
+    fontSize--;
+    el.style.fontSize = fontSize + "px";
   }
-
-  // Verificar conteúdo de SEGMENTO
-  if (segmentoData && segmentoContainer) {
-    const segmentoValue = segmentoData.textContent.trim();
-    if (!segmentoValue || segmentoValue === "{{SEGMENTO}}") {
-      segmentoContainer.style.visibility = "hidden";
-    } else {
-      segmentoContainer.style.visibility = "visible";
-    }
-  }
-
-});
+})();
 </script>
 
 </body>
