@@ -156,7 +156,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-inline: 40px;
+  padding-left: 40px;
+  padding-right: 60px; /* cria respiro maior à direita */
   overflow: hidden;
 }
 
@@ -164,7 +165,6 @@ body {
 #cupom-text {
   font-size: 100px;
   font-weight: 900;
-  transform: translateX(-25px);
   color: #ffffff;
   white-space: nowrap;
 }
@@ -175,7 +175,9 @@ body {
   min-height: 70px;
 }
 
-.uf {
+/* UF E URN COM MESMA FORMATAÇÃO */
+.uf,
+.urn {
   font-size: 22px;
   font-weight: 700;
 }
