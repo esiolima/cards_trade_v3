@@ -1,24 +1,20 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=700, initial-scale=1.0" />
-<title>Promoção</title>
+<title>Cupom de Desconto</title>
 
 <style>
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Regular.ttf') format('truetype');
   font-weight: 400;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Bold.ttf') format('truetype');
   font-weight: 700;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Black.ttf') format('truetype');
@@ -26,44 +22,46 @@
 }
 
 * {
-  text-transform: uppercase;
-  color: #2b4474;
   box-sizing: border-box;
+  font-family: Inter, sans-serif;
+  text-transform: uppercase;
 }
 
 body {
   margin: 0;
-  width: 700px;
-  height: 1058px;
-  font-family: 'Inter', sans-serif;
   background: transparent;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* CARD */
+/* ================= CARD ================= */
 .card {
   width: 700px;
-  height: 1058px;
-  border: 8px solid #e0b84b;
-  border-radius: 40px;
-  padding: 80px 40px 60px 40px;
-  position: relative;
-  overflow: hidden;
+  height: 1057.5px;
+  border: 6px solid #F2C94C;
+  border-radius: 48px;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #ffffff;
+  padding: 0 20px;
+  overflow: hidden;
+  position: relative;
+  color: #1F3C6E;
+  justify-content: space-between; /* Distribui o espaço entre os blocos principais */
+  padding-top: 60px;
+  padding-bottom: 30px;
 }
 
-/* SELO */
+/* ===== SELO ===== */
 .selo {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100px;
-  height: 100px;
+  width: 130px;
+  height: 65px;
+  z-index: 10;
 }
 
 .selo img {
@@ -72,189 +70,225 @@ body {
   object-fit: contain;
 }
 
-/* LOGO */
+/* ===== LOGO ===== */
 .logo {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.logo img {
-  max-width: 220px;
-  max-height: 120px;
-}
-
-/* TARJA */
-.tarja {
-  margin-top: 35px;
-  background: #ff7a00;
-  color: #ffffff;
-  padding: 20px 70px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 54px;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.tarja span {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 54px;
-}
-
-/* TEXTO SUPERIOR */
-.texto-topo {
-  text-align: center;
-  font-size: 28px;
-  font-weight: 400;
-  margin-top: 50px;
-  margin-bottom: 70px;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
-}
-
-/* VALOR */
-.valor-container {
-  width: 100%;
-  height: 420px;
+  height: 154px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
-.valor-texto {
-  font-weight: 900;
-  font-size: 480px; /* atualizado */
-  line-height: 1;
+.logo img {
+  max-height: 154px;
+  max-width: 520px;
+  object-fit: contain;
+}
+
+/* ===== TEXTO SUPERIOR ===== */
+.condicao {
+  max-width: 550px;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.15;
   text-align: center;
-  white-space: nowrap;
+  word-break: break-word;
 }
 
-/* CONTEÚDO INFERIOR */
-.conteudo-inferior {
-  width: 100%;
+/* ===== BLOCO DE DESCONTO (VALOR + TEXTO) ===== */
+.bloco-desconto {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 40px;
+  justify-content: center;
 }
 
-/* COMPLEMENTO */
-.complemento {
-  text-align: center;
-  font-weight: 400;
-  font-size: 28px;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
-  margin-bottom: 25px;
+.percentual {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  padding: 0 30px;
 }
 
-/* LEGAL */
+.numero,
+.percent {
+  font-weight: 900;
+  font-size: clamp(120px, 25vw, 270px);
+  line-height: 1;
+}
+
+.percent {
+  margin-left: 6px;
+}
+
+.desconto {
+  font-size: clamp(40px, 5vw, 60px);
+  font-weight: 700;
+  margin-top: 10px; /* Pequeno respiro abaixo do valor */
+}
+
+/* ===== LEGAL ===== */
 .legal {
-  text-align: center;
-  font-size: 18px;
   max-width: 550px;
+  font-size: 18px;
   line-height: 1.15;
+  text-align: center;
   word-break: break-word;
-  margin-bottom: 30px;
 }
 
-/* RODAPÉ */
+/* ===== CUPOM BOX ===== */
+.cupom-box {
+  width: 600px;
+  height: 140px;
+  background: #16A7E0;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 20px;
+}
+
+.cupom-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+}
+
+.cupom-label span {
+  transform: rotate(-90deg);
+  font-size: 30px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+/* ===== CUPOM DINÂMICO ===== */
+.cupom-codigo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-weight: 900;
+  color: #ffffff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#cupom-text {
+  font-size: 80px;
+  line-height: 1;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* ===== RODAPÉ ===== */
 .rodape {
   text-align: center;
 }
 
-.uf, .urn {
+.uf {
   font-size: clamp(20px, 2vw, 24px);
   font-weight: 700;
 }
 
 .segmento-container {
-  margin-top: 15px;
-}
-
-.segmento-label {
   margin-top: 12px;
-  font-size: 18px;
-  display: block;
+  font-size: clamp(20px, 2vw, 25px);
+  font-weight: 400; /* Rótulo sem negrito */
 }
 
-.segmento-valor {
-  font-size: 25px;
-  font-weight: 700;
-  display: block;
+#segmento-data {
+  font-weight: 700; /* Apenas o dado variável em negrito */
 }
-
 </style>
 </head>
 
 <body>
-
 <div class="card">
 
   <div class="selo">
-    <img src="{{SELO}}" />
+    <img src="{{SELO}}" alt="Selo">
   </div>
 
   <div class="logo">
-    <img src="{{LOGO}}" />
+    <img src="{{LOGO}}" alt="Logo">
   </div>
 
-  <div class="tarja">
-    <span>PROMOÇÃO</span>
+  <div class="condicao">{{TEXTO}}</div>
+
+  <div class="bloco-desconto">
+    <div class="percentual">
+      <div class="numero">{{VALOR}}</div>
+      <div class="percent">%</div>
+    </div>
+    <div class="desconto">DE DESCONTO</div>
   </div>
 
-  <div class="texto-topo">
-    {{TEXTO}}
-  </div>
+  <div class="legal">{{LEGAL}}</div>
 
-  <div class="valor-container" id="valor-container">
-    <div class="valor-texto" id="valor-texto">
-      {{VALOR}}
+  <div class="cupom-box">
+    <div class="cupom-label">
+      <span>CUPOM</span>
+    </div>
+    <div class="cupom-codigo">
+      <span id="cupom-text">{{CUPOM}}</span>
     </div>
   </div>
 
-  <div class="conteudo-inferior">
-    <div class="complemento">
-      {{COMPLEMENTO}}
-    </div>
-
-    <div class="legal">
-      {{LEGAL}}
-    </div>
-
-    <div class="rodape">
-      <div class="uf">{{UF}}</div>
-      <div class="urn">{{URN}}</div>
-      <div class="segmento-container">
-        <span class="segmento-label">SEGMENTO DE CLIENTES:</span>
-        <span class="segmento-valor">{{SEGMENTO}}</span>
-      </div>
-    </div>
+  <div class="rodape">
+    <div class="uf">{{UF}}</div>
+    <div class="uf">{{URN}}</div>
+    <div id="segmento-wrapper" class="segmento-container">SEGMENTO DE CLIENTES: <span id="segmento-data">{{SEGMENTO}}</span></div>
   </div>
 
 </div>
 
 <script>
-window.addEventListener("load", function () {
+(function () {
+  try {
+    // 1. Ajuste do tamanho da fonte do cupom
+    const el = document.getElementById("cupom-text");
+    if (el) {
+      const container = el.parentElement;
+      if (container) {
+        const style = window.getComputedStyle(container);
+        const paddingLeft = parseFloat(style.paddingLeft);
+        const paddingRight = parseFloat(style.paddingRight);
+        const larguraDisponivel = container.clientWidth - paddingLeft - paddingRight;
 
-  const container = document.getElementById("valor-container");
-  const texto = document.getElementById("valor-texto");
+        let fontSize = 80;
+        const minFontSize = 20;
 
-  if (!container || !texto) return;
+        el.style.whiteSpace = "nowrap";
+        el.style.fontSize = fontSize + "px";
 
-  let fontSize = 480; // atualizado
-  texto.style.fontSize = fontSize + "px";
+        while (el.scrollWidth > larguraDisponivel && fontSize > minFontSize) {
+          fontSize--;
+          el.style.fontSize = fontSize + "px";
+        }
+      }
+    }
 
-  while (texto.scrollWidth > container.clientWidth && fontSize > 80) {
-    fontSize -= 6;
-    texto.style.fontSize = fontSize + "px";
+    // 2. Lógica para ocultar segmento se estiver vazio
+    const segmentoData = document.getElementById("segmento-data");
+    const segmentoWrapper = document.getElementById("segmento-wrapper");
+    
+    if (segmentoData && segmentoWrapper) {
+      const valor = segmentoData.textContent.trim();
+      // Verifica se está vazio ou se contém apenas o placeholder literal
+      if (valor === "" || valor === "{{SEGMENTO}}") {
+        segmentoWrapper.style.visibility = "hidden";
+      } else {
+        segmentoWrapper.style.visibility = "visible";
+      }
+    }
+
+  } catch (e) {
+    console.log("Erro no script:", e);
   }
-
-});
+})();
 </script>
 
 </body>
