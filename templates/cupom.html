@@ -1,300 +1,122 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<title>Cupom de Desconto</title>
+<meta charset="UTF-8">
 
 <style>
-@font-face {
-  font-family: 'Inter';
-  src: url('../fonts/Inter-Regular.ttf') format('truetype');
-  font-weight: 400;
-}
-@font-face {
-  font-family: 'Inter';
-  src: url('../fonts/Inter-Bold.ttf') format('truetype');
-  font-weight: 700;
-}
-@font-face {
-  font-family: 'Inter';
-  src: url('../fonts/Inter-Black.ttf') format('truetype');
-  font-weight: 900;
-}
-
-* {
-  box-sizing: border-box;
-  font-family: Inter, sans-serif;
-  text-transform: uppercase;
-}
 
 body {
-  margin: 0;
-  background: transparent;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
 }
 
-/* ================= CARD ================= */
-.card {
-  width: 700px;
-  height: 1057.5px;
-  border: 6px solid #F2C94C;
-  border-radius: 48px;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 20px;
-  overflow: hidden;
-  position: relative;
-  color: #1F3C6E;
+.cupom-container {
+    position: relative;
+    width: 800px;
+    padding: 40px;
+    border: 2px solid #000;
+    margin: auto;
+    box-sizing: border-box;
 }
 
-/* ===== SELO ===== */
+/* SELO MAIOR E COLADO NO TOPO ESQUERDO */
 .selo {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100px;
-  height: 100px;
-  z-index: 10;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 150px; /* AQUI VOCÊ AUMENTA OU DIMINUI */
+    height: auto;
+    margin: 0;
+    padding: 0;
 }
 
-.selo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* ===== LOGO ===== */
+/* LOGO REDUZIDO EM 15% */
 .logo {
-  margin-top: 60px;
-  height: 154px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    width: 85%; /* redução de 15% */
+    display: block;
+    margin: 60px auto 20px auto;
 }
 
-.logo img {
-  max-height: 154px;
-  max-width: 520px;
-  object-fit: contain;
+/* TÍTULO */
+.titulo {
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+    margin-top: 10px;
 }
 
-/* ===== TEXTO SUPERIOR ===== */
-.condicao {
-  margin-top: 35px;
-  margin-bottom: 60px; /* MAIS ESPAÇO ANTES DO VALOR */
-  max-width: 550px;
-  font-size: 28px;
-  font-weight: 400;
-  line-height: 1.15;
-  text-align: center;
-  word-break: break-word;
+/* TEXTO PRINCIPAL */
+.texto {
+    text-align: center;
+    font-size: 20px;
+    margin: 20px 0;
 }
 
-/* ===== BENEFÍCIO ===== */
-.percentual {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  margin-top: 0; /* removido margin negativo */
-  width: 100%;
-  padding: 0 30px;
-  margin-bottom: 10px;
+/* ÁREA DO CUPOM */
+.cupom-wrapper {
+    position: relative;
+    margin-top: 40px;
+    text-align: center;
 }
 
-.numero,
-.percent {
-  font-weight: 900;
-  font-size: clamp(120px, 25vw, 270px);
-  line-height: 1;
+/* PALAVRA CUPOM ROTACIONADA E MAIOR */
+.cupom-rotacionado {
+    position: absolute;
+    left: -60px;
+    top: 50%;
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    font-size: 36px;
+    font-weight: bold;
 }
 
-.percent {
-  margin-left: 6px;
-}
-
-.desconto {
-  margin-top: 10px;
-  font-size: clamp(40px, 5vw, 60px);
-  font-weight: 700;
-}
-
-/* ===== COMPLEMENTO LOGO APÓS DESCONTO ===== */
-.complemento {
-  margin-top: 20px;
-  max-width: 550px;
-  font-size: 24px;
-  line-height: 1.15;
-  text-align: center;
-}
-
-/* ===== LEGAL ===== */
-.legal {
-  margin-top: 25px;
-  max-width: 550px;
-  font-size: 18px;
-  line-height: 1.15;
-  text-align: center;
-  word-break: break-word;
-}
-
-/* ===== ESPAÇO FLEX ===== */
-.espaco-flexivel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ===== CUPOM BOX ===== */
-.cupom-box {
-  margin-top: 30px;
-  margin-bottom: 15px;
-  width: 600px;
-  height: 140px;
-  background: #16A7E0;
-  border-radius: 20px;
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  overflow: hidden;
-}
-
-.cupom-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cupom-label span {
-  transform: rotate(-90deg);
-  font-size: clamp(20px, 2.4vw, 28px);
-  font-weight: 700;
-  color: #ffffff;
-}
-
-/* ===== CUPOM DINÂMICO ===== */
+/* CÓDIGO DO CUPOM CENTRALIZADO */
 .cupom-codigo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 40px;
-  width: 100%;
-  height: 100%;
-  font-weight: 900;
-  color: #ffffff;
-  overflow: hidden;
-  box-sizing: border-box;
+    font-size: 48px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
 }
 
-#cupom-text {
-  font-size: 110px;
-  line-height: 1;
-  white-space: nowrap;
-  display: inline-block;
-}
-
-/* ===== RODAPÉ ===== */
+/* RODAPÉ EM UMA LINHA */
 .rodape {
-  margin-bottom: 30px;
-  text-align: center;
+    margin-top: 60px;
+    text-align: center;
+    font-size: 16px;
+    white-space: nowrap;
 }
 
-.uf {
-  font-size: clamp(20px, 2vw, 24px);
-  font-weight: 700;
-}
-
-.segmento-label {
-  margin-top: 12px;
-  font-size: clamp(18px, 1.5vw, 18px);
-}
-
-.segmento-valor {
-  font-size: clamp(20px, 2vw, 25px);
-  font-weight: 700;
-}
 </style>
 </head>
 
 <body>
-<div class="card">
 
-  <div class="selo">
-    <img src="{{SELO}}" alt="Selo">
-  </div>
+<div class="cupom-container">
 
-  <div class="logo">
-    <img src="{{LOGO}}" alt="Logo">
-  </div>
+    <!-- SELO -->
+    <img src="{{SELO}}" class="selo">
 
-  <div class="condicao">{{TEXTO}}</div>
+    <!-- LOGO -->
+    <img src="{{LOGO}}" class="logo">
 
-  <div class="percentual">
-    <div class="numero">{{VALOR}}</div>
-    <div class="percent">%</div>
-  </div>
+    <h1 class="titulo">AÇÃO RENOVADA</h1>
 
-  <div class="desconto">DE DESCONTO</div>
+    <p class="texto">
+        NAS COMPRAS A PARTIR DE R$50 DO MIX SELECIONADO KENVUE (CONFIRA O MIX),<br>
+        GANHE ATÉ <strong>10%</strong> DE DESCONTO
+    </p>
 
-  <div class="espaco-flexivel">
-    <div class="complemento">{{COMPLEMENTO}}</div>
-    <div class="legal">{{LEGAL}}</div>
-  </div>
-
-  <div class="cupom-box">
-    <div class="cupom-label">
-      <span>CUPOM</span>
+    <div class="cupom-wrapper">
+        <div class="cupom-rotacionado">CUPOM</div>
+        <div class="cupom-codigo">{{CUPOM}}</div>
     </div>
-    <div class="cupom-codigo">
-      <span id="cupom-text">{{CUPOM}}</span>
-    </div>
-  </div>
 
-  <div class="rodape">
-    <div class="uf">{{UF}}</div>
-    <div class="uf">{{URN}}</div>
-    <div class="segmento-label">SEGMENTO DE CLIENTES:</div>
-    <div class="segmento-valor">{{SEGMENTO}}</div>
-  </div>
+    <div class="rodape">
+        UF: NACIONAL • URN: NACIONAL • SEGMENTO DE CLIENTES: TODOS
+    </div>
 
 </div>
-
-<script>
-(function () {
-  try {
-    const el = document.getElementById("cupom-text");
-    if (!el) return;
-
-    const container = el.parentElement;
-    if (!container) return;
-
-    const style = window.getComputedStyle(container);
-    const paddingLeft = parseFloat(style.paddingLeft);
-    const paddingRight = parseFloat(style.paddingRight);
-
-    const larguraDisponivel =
-      container.clientWidth - paddingLeft - paddingRight;
-
-    let fontSize = 110;
-    const minFontSize = 20;
-
-    el.style.whiteSpace = "nowrap";
-    el.style.fontSize = fontSize + "px";
-
-    while (el.scrollWidth > larguraDisponivel && fontSize > minFontSize) {
-      fontSize--;
-      el.style.fontSize = fontSize + "px";
-    }
-
-  } catch (e) {
-    console.log("Erro ajuste cupom:", e);
-  }
-})();
-</script>
 
 </body>
 </html>
