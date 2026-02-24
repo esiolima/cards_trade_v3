@@ -25,7 +25,7 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    width: 150px; /* AQUI VOCÊ AUMENTA OU DIMINUI */
+    width: 150px; /* ajuste livre */
     height: auto;
     margin: 0;
     padding: 0;
@@ -33,7 +33,7 @@ body {
 
 /* LOGO REDUZIDO EM 15% */
 .logo {
-    width: 85%; /* redução de 15% */
+    width: 85%;
     display: block;
     margin: 60px auto 20px auto;
 }
@@ -100,11 +100,10 @@ body {
     <!-- LOGO -->
     <img src="{{LOGO}}" class="logo">
 
-    <h1 class="titulo">AÇÃO RENOVADA</h1>
+    <h1 class="titulo">{{TITULO}}</h1>
 
     <p class="texto">
-        NAS COMPRAS A PARTIR DE R$50 DO MIX SELECIONADO KENVUE (CONFIRA O MIX),<br>
-        GANHE ATÉ <strong>10%</strong> DE DESCONTO
+        {{TEXTO_PRINCIPAL}}
     </p>
 
     <div class="cupom-wrapper">
@@ -113,7 +112,7 @@ body {
     </div>
 
     <div class="rodape">
-        UF: NACIONAL • URN: NACIONAL • SEGMENTO DE CLIENTES: TODOS
+        {{RODAPE}}
     </div>
 
 </div>
