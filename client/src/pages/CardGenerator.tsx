@@ -157,10 +157,10 @@ export default function CardGenerator() {
     }
   };
 
-  // 🎨 Background sugerido (mantido)
+  // 🎨 Background sugerido pelo usuario
   const bgColor = isDark
-    ? "bg-gradient-to-br from-gray-950 via-blue-950 to-indigo-950"
-    : "bg-gradient-to-br from-slate-100 via-blue-100 to-purple-100";
+  ? "bg-gradient-to-br from-[#002f67] via-[#4c0d6d] to-[#002f67]"
+  : "bg-gradient-to-br from-slate-100 via-blue-100 to-purple-100";
 
   const cardBg = isDark ? "bg-white/10 backdrop-blur-lg border border-white/20" : "bg-white/50 backdrop-blur-lg border border-white/80";
   const textPrimary = isDark ? "text-white" : "text-slate-900";
