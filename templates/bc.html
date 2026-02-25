@@ -16,7 +16,7 @@
   font-weight: 700;
 }
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Inter-Black.ttf';
   src: url('../fonts/Inter-Black.ttf') format('truetype');
   font-weight: 900;
 }
@@ -24,7 +24,7 @@
 * { 
   box-sizing: border-box;
   font-family: Inter, sans-serif;
-  text-transform: uppercase; /* Força caixa alta em tudo */
+  text-transform: uppercase;
 }
 
 body {
@@ -35,6 +35,7 @@ body {
   align-items: center;
 }
 
+/* ================= CARD ================= */
 .card {
   width: 700px;
   height: 1057.5px;
@@ -43,31 +44,32 @@ body {
   border-radius: 70px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between; /* distribuição vertical */
   align-items: center;
   color: #1F3C6E;
-  padding: 0 20px;
-  overflow: hidden;
+  padding: 60px 20px 30px 20px;
   position: relative;
+  overflow: visible;
 }
 
-/* SELO */
+/* ===== SELO AJUSTADO ===== */
 .selo {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100px;
-  height: 100px;
+  top: -6px;
+  left: -6px;
+  width: 130px;
+  height: 65px;
+  z-index: 10;
 }
 
 .selo img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
-/* LOGO - Reduzido para 70% (154px) */
+/* LOGO */
 .logo {
-  margin-top: 60px;
   height: 154px;
   display: flex;
   align-items: center;
@@ -82,7 +84,6 @@ body {
 
 /* TÍTULO */
 .titulo {
-  margin-top: 35px;
   background: #1F3C6E;
   color: #ffffff;
   padding: 20px 50px;
@@ -91,9 +92,18 @@ body {
   font-size: 60px;
 }
 
-/* BENEFÍCIO */
+/* TEXTO */
+.texto {
+  text-align: center;
+  font-weight: 400;
+  font-size: 28px;
+  max-width: 550px;
+  line-height: 1.15;
+  word-break: break-word;
+}
+
+/* BENEFÍCIO (INALTERADO) */
 .beneficio {
-  margin-top: 50px;
   text-align: center;
 }
 
@@ -128,27 +138,6 @@ body {
   font-size: 46px;
 }
 
-/* TEXTO */
-.texto {
-  margin-top: 30px;
-  text-align: center;
-  font-weight: 400;
-  font-size: 28px;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
-}
-
-/* AREA DE ESPAÇAMENTO DINÂMICO */
-.espaco-flexivel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  align-items: center;
-  width: 100%;
-}
-
 /* COMPLEMENTO E LEGAL */
 .complemento {
   text-align: center;
@@ -171,14 +160,18 @@ body {
 .rodape {
   margin-bottom: 30px;
   text-align: center;
+  min-height: 70px;
 }
 
-.uf {
+/* UF e URN IGUAIS */
+.uf,
+.urn {
   font-size: clamp(20px, 2vw, 24px);
   font-weight: 700;
 }
 
-.segmento-label {
+/* SEGMENTO PADRÃO CUPOM */
+.segmento-linha {
   margin-top: 12px;
   font-size: clamp(18px, 1.5vw, 18px);
 }
@@ -191,40 +184,57 @@ body {
 </head>
 
 <body>
-  <div class="card">
+<div class="card">
 
-    <div class="selo">
-      <img src="{{SELO}}" alt="Selo">
-    </div>
-
-    <div class="logo">
-      <img src="{{LOGO}}" alt="Logo">
-    </div>
-
-    <div class="titulo">BC</div>
-	  
-    <div class="texto">{{TEXTO}}</div>
-
-    <div class="beneficio">
-      <div class="percentual">
-        <div class="numero">{{VALOR}}</div>
-        <div class="percent">%</div>
-      </div>
-      <div class="desconto">DE DESCONTO</div>
-    </div>
-
-    <div class="espaco-flexivel">
-      <div class="complemento">{{COMPLEMENTO}}</div>
-      <div class="legal">{{LEGAL}}</div>
-    </div>
-
-    <div class="rodape">
-      <div class="uf">{{UF}}</div>
-      <div class="uf">{{URN}}</div>
-      <div class="segmento-label">SEGMENTO DE CLIENTES:</div>
-      <div class="segmento-valor">{{SEGMENTO}}</div>
-    </div>
-
+  <div class="selo">
+    <img src="{{SELO}}" alt="Selo">
   </div>
+
+  <div class="logo">
+    <img src="{{LOGO}}" alt="Logo">
+  </div>
+
+  <div class="titulo">BC</div>
+	  
+  <div class="texto">{{TEXTO}}</div>
+
+  <div class="beneficio">
+    <div class="percentual">
+      <div class="numero">{{VALOR}}</div>
+      <div class="percent">%</div>
+    </div>
+    <div class="desconto">DE DESCONTO</div>
+  </div>
+
+  <div class="complemento">{{COMPLEMENTO}}</div>
+  <div class="legal">{{LEGAL}}</div>
+
+  <div class="rodape">
+    <div class="uf">{{UF}}</div>
+    <div class="urn">{{URN}}</div>
+
+    <div class="segmento-linha" id="segmento-linha">
+      SEGMENTO DE CLIENTES:
+      <span class="segmento-valor">{{SEGMENTO}}</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const segmento = document.getElementById("segmento-linha");
+  if (!segmento) return;
+
+  const texto = segmento.innerText
+    .replace("SEGMENTO DE CLIENTES:", "")
+    .trim();
+
+  if (!texto) {
+    segmento.style.visibility = "hidden"; /* preserva espaço */
+  }
+})();
+</script>
+
 </body>
 </html>
