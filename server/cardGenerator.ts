@@ -58,7 +58,6 @@ export class CardGenerator extends EventEmitter {
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    // Limpa PDFs e ZIP antigos
     fs.readdirSync(OUTPUT_DIR).forEach((file) => {
       if (file.endsWith(".pdf") || file.endsWith(".zip")) {
         fs.unlinkSync(path.join(OUTPUT_DIR, file));
@@ -81,27 +80,19 @@ export class CardGenerator extends EventEmitter {
 
       let html = fs.readFileSync(templatePath, "utf8");
 
-      // === REGRA DO VALOR (mantida da versão anterior) ===
       let valorFinal = String(row.valor ?? "");
       if (tipo !== "promocao") {
         valorFinal = valorFinal.replace(/%/g, "").trim();
       }
 
-      // === LOGO COM FALLBACK AUTOMÁTICO ===
       let logoFile = "blank.png";
-
       if (row.logo && String(row.logo).trim() !== "") {
         const possibleLogo = String(row.logo).trim();
         const possiblePath = path.join(LOGOS_DIR, possibleLogo);
-
-        if (fs.existsSync(possiblePath)) {
-          logoFile = possibleLogo;
-        }
+        if (fs.existsSync(possiblePath)) logoFile = possibleLogo;
       }
 
-      const logoBase64 = this.imageToBase64(
-        path.join(LOGOS_DIR, logoFile)
-      );
+      const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, logoFile));
 
       const seloBase64 = row.selo
         ? this.imageToBase64(
@@ -123,8 +114,8 @@ export class CardGenerator extends EventEmitter {
         .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
         .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
         .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
-        .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
-        .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
+        .replaceAll("{{UF}}", String(row.uf ?? ""))
+        .replaceAll("{{URN}}", String(row.urn ?? ""))
         .replaceAll("{{LOGO}}", logoBase64)
         .replaceAll("{{SELO}}", seloBase64);
 
@@ -164,8 +155,8 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
-    // === ZIP COM NOME IGUAL AO DA PLANILHA ===
-    const baseName = path.parse(excelFilePath).name;
+    const originalFileName = path.basename(excelFilePath);
+    const baseName = path.parse(originalFileName).name;
     const zipPath = path.join(OUTPUT_DIR, `${baseName}.zip`);
 
     const output = fs.createWriteStream(zipPath);
