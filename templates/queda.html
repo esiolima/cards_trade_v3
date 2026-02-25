@@ -20,7 +20,7 @@
 }
 
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Inter-Black';
   src: url('../fonts/Inter-Black.ttf') format('truetype');
   font-weight: 900;
 }
@@ -42,38 +42,40 @@ body {
   align-items: center;
 }
 
+/* ================= CARD ================= */
 .card {
   width: 700px;
-  height: 1058px; /* FIXO */
+  height: 1058px;
   border: 8px solid #e0b84b;
   border-radius: 40px;
   background: #ffffff;
   padding: 70px 40px 60px 40px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  justify-content: space-between; /* distribuição vertical */
+  overflow: visible;
   position: relative;
 }
 
-/* SELO */
+/* ===== SELO PADRÃO ===== */
 .selo {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100px;
-  height: 100px;
+  top: -8px;
+  left: -8px;
+  width: 130px;
+  height: 65px;
+  z-index: 10;
 }
 
 .selo img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
 }
 
 /* LOGO */
 .logo {
   text-align: center;
-  margin-bottom: 30px;
 }
 
 .logo img {
@@ -90,33 +92,31 @@ body {
   text-align: center;
   padding: 18px 40px;
   border-radius: 999px;
-  margin: 20px auto 30px auto;
+  margin: 20px auto;
   white-space: nowrap;
 }
 
-/* AREA CENTRAL FLEXÍVEL */
+/* AREA CENTRAL */
 .area-central {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  gap: 30px;
   text-align: center;
 }
 
 /* TEXTO */
 .texto-topo {
   font-size: 26px;
-  margin-bottom: 40px;
   line-height: 1.2;
   word-break: break-word;
 }
 
-/* VALOR */
+/* VALOR (INALTERADO) */
 .valor-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 20px;
 }
 
 .valor-texto {
@@ -130,7 +130,6 @@ body {
 .desconto {
   font-size: 44px;
   font-weight: 700;
-  margin-bottom: 40px;
 }
 
 /* COMPLEMENTO */
@@ -138,31 +137,31 @@ body {
   font-size: 24px;
   line-height: 1.2;
   max-width: 560px;
-  margin: 0 auto;
   word-break: break-word;
 }
 
-/* RODAPÉ FIXO DENTRO DO CARD */
+/* RODAPÉ */
 .rodape {
-  margin-top: auto; /* chave para não cortar */
   text-align: center;
+  min-height: 70px;
 }
 
-.uf, .urn {
+/* UF E URN IGUAIS */
+.uf,
+.urn {
   font-size: 22px;
   font-weight: 700;
 }
 
-.segmento-label {
+/* SEGMENTO PADRÃO CUPOM */
+.segmento-linha {
   margin-top: 10px;
   font-size: 18px;
-  display: block;
 }
 
 .segmento-valor {
   font-size: 22px;
   font-weight: 700;
-  display: block;
 }
 
 </style>
@@ -209,11 +208,29 @@ body {
   <div class="rodape">
     <div class="uf">{{UF}}</div>
     <div class="urn">{{URN}}</div>
-    <span class="segmento-label">SEGMENTO DE CLIENTES:</span>
-    <span class="segmento-valor">{{SEGMENTO}}</span>
+
+    <div class="segmento-linha" id="segmento-linha">
+      SEGMENTO DE CLIENTES:
+      <span class="segmento-valor">{{SEGMENTO}}</span>
+    </div>
   </div>
 
 </div>
+
+<script>
+(function () {
+  const segmento = document.getElementById("segmento-linha");
+  if (!segmento) return;
+
+  const texto = segmento.innerText
+    .replace("SEGMENTO DE CLIENTES:", "")
+    .trim();
+
+  if (!texto) {
+    segmento.style.visibility = "hidden";
+  }
+})();
+</script>
 
 </body>
 </html>
