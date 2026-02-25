@@ -30,32 +30,10 @@ export class CardGenerator extends EventEmitter {
     });
   }
 
-  normalizeType(tipo: string): string {
-    if (!tipo) return "";
-
-    const normalized = String(tipo)
-      .toLowerCase()
-      .trim()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-
-    if (normalized.includes("promo")) return "promocao";
-    if (normalized.includes("cupom")) return "cupom";
-    if (normalized.includes("queda")) return "queda";
-    if (normalized.includes("cashback")) return "cashback";
-    if (normalized === "bc") return "bc";
-
-    return "";
-  }
-
-  imageToBase64(imagePath: string): string {
-    if (!imagePath || !fs.existsSync(imagePath)) return "";
-    const ext = path.extname(imagePath).replace(".", "");
-    const buffer = fs.readFileSync(imagePath);
-    return `data:image/${ext};base64,${buffer.toString("base64")}`;
-  }
-
-  async generateCards(excelFilePath: string): Promise<string> {
+  async generateCards(
+    excelFilePath: string,
+    originalName: string
+  ): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
     fs.readdirSync(OUTPUT_DIR).forEach((file) => {
@@ -68,74 +46,32 @@ export class CardGenerator extends EventEmitter {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
-    const total = rows.length;
     let processed = 0;
 
     for (const row of rows) {
-      const tipo = this.normalizeType(row.tipo);
-      if (!tipo) continue;
-
-      const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
+      const templatePath = path.join(TEMPLATES_DIR, `${row.tipo}.html`);
       if (!fs.existsSync(templatePath)) continue;
 
       let html = fs.readFileSync(templatePath, "utf8");
 
-      let valorFinal = String(row.valor ?? "");
-      if (tipo !== "promocao") {
-        valorFinal = valorFinal.replace(/%/g, "").trim();
-      }
-
-      let logoFile = "blank.png";
-      if (row.logo && String(row.logo).trim() !== "") {
-        const possibleLogo = String(row.logo).trim();
-        const possiblePath = path.join(LOGOS_DIR, possibleLogo);
-        if (fs.existsSync(possiblePath)) logoFile = possibleLogo;
-      }
-
-      const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, logoFile));
-
-      const seloBase64 = row.selo
-        ? this.imageToBase64(
-            path.join(
-              SELOS_DIR,
-              row.selo.toLowerCase() === "nova"
-                ? "acaonova.png"
-                : row.selo.toLowerCase() === "renovada"
-                ? "acaorenovada.png"
-                : ""
-            )
-          )
-        : "";
-
       html = html
         .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
-        .replaceAll("{{VALOR}}", valorFinal)
+        .replaceAll("{{VALOR}}", String(row.valor ?? ""))
         .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
         .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
         .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
         .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
         .replaceAll("{{UF}}", String(row.uf ?? ""))
-        .replaceAll("{{URN}}", String(row.urn ?? ""))
-        .replaceAll("{{LOGO}}", logoBase64)
-        .replaceAll("{{SELO}}", seloBase64);
+        .replaceAll("{{URN}}", String(row.urn ?? ""));
 
       const tmpHtmlPath = path.join(TMP_DIR, `card_${processed + 1}.html`);
       fs.writeFileSync(tmpHtmlPath, html);
 
       const page = await this.browser.newPage();
       await page.setViewport({ width: 700, height: 1058 });
+      await page.goto(`file://${tmpHtmlPath}`, { waitUntil: "networkidle0" });
 
-      await page.goto(`file://${tmpHtmlPath}`, {
-        waitUntil: "networkidle0",
-      });
-
-      const ordemFinal =
-        row.ordem && String(row.ordem).trim() !== ""
-          ? String(row.ordem).trim()
-          : String(processed + 1);
-
-      const pdfName = `${ordemFinal}_${tipo}.pdf`;
-      const pdfPath = path.join(OUTPUT_DIR, pdfName);
+      const pdfPath = path.join(OUTPUT_DIR, `${processed + 1}.pdf`);
 
       await page.pdf({
         path: pdfPath,
@@ -145,18 +81,11 @@ export class CardGenerator extends EventEmitter {
       });
 
       await page.close();
-
       processed++;
-
-      this.emit("progress", {
-        processed,
-        total,
-        percentage: Math.round((processed / total) * 100),
-      });
     }
 
-    const originalFileName = path.basename(excelFilePath);
-    const baseName = path.parse(originalFileName).name;
+    // 🔥 ZIP COM MESMO NOME DA PLANILHA
+    const baseName = path.parse(originalName).name;
     const zipPath = path.join(OUTPUT_DIR, `${baseName}.zip`);
 
     const output = fs.createWriteStream(zipPath);
