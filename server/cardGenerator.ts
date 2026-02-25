@@ -143,7 +143,19 @@ export class CardGenerator extends EventEmitter {
           ? String(row.ordem).trim()
           : String(processed + 1);
 
-      const pdfName = `${ordemFinal}_${tipo}.pdf`;
+      const categoriaRaw = String(row.categoria ?? "").trim();
+
+      const categoriaFinal = categoriaRaw
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "");
+      
+      const pdfName = categoriaFinal
+        ? `${ordemFinal}_${tipo}_${categoriaFinal}.pdf`
+        : `${ordemFinal}_${tipo}.pdf`;
       const pdfPath = path.join(OUTPUT_DIR, pdfName);
 
       await page.pdf({
