@@ -84,7 +84,10 @@ export default function CardGenerator() {
     alert("zipPath: " + zipPath);
     if (!zipPath) return;
     try {
-      const response = await fetch(`/api/download?zipPath=${encodeURIComponent(zipPath)}`);
+
+      const fileName = zipPath.split("/").pop();
+      const response = await fetch(`/api/download?zipPath=${encodeURIComponent(fileName)}`);
+    
       if (!response.ok) throw new Error("Erro ao baixar arquivo");
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);S
