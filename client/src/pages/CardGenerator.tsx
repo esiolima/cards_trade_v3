@@ -86,7 +86,7 @@ export default function CardGenerator() {
       const response = await fetch(`/api/download?zipPath=${encodeURIComponent(zipPath)}`);
       if (!response.ok) throw new Error("Erro ao baixar arquivo");
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);S
       const a = document.createElement("a");
       a.href = url;
       a.download = "cards.zip";
@@ -99,7 +99,9 @@ export default function CardGenerator() {
     }
   };
 
-  const bgColor = isDark ? "bg-gradient-to-br from-gray-900 via-blue-950 to-purple-950" : "bg-gradient-to-br from-slate-100 via-blue-100 to-purple-100";
+  const bgColor = isDark
+  ? "bg-gradient-to-br from-[#002f67] via-[#4c0d6d] to-[#002f67]"
+  : "bg-gradient-to-br from-slate-100 via-blue-100 to-purple-100";
   const cardBg = isDark ? "bg-white/10 backdrop-blur-lg border border-white/20" : "bg-white/50 backdrop-blur-lg border border-white/80";
   const textPrimary = isDark ? "text-white" : "text-slate-900";
   const textSecondary = isDark ? "text-slate-300" : "text-slate-600";
