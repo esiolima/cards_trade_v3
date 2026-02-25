@@ -81,6 +81,7 @@ export default function CardGenerator() {
   };
 
   const handleDownload = async () => {
+    alert("Download clicado");
     if (!zipPath) return;
     try {
       const response = await fetch(`/api/download?zipPath=${encodeURIComponent(zipPath)}`);
