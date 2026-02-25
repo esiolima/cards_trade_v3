@@ -191,7 +191,11 @@ export class CardGenerator extends EventEmitter {
       }
     });
 
-    await archive.finalize();
+    await new Promise<void>((resolve, reject) => {
+      archive.on("error", reject);
+      output.on("close", resolve);
+      archive.finalize();
+    });
 
     return zipPath;
   }
