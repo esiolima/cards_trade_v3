@@ -120,6 +120,6 @@ export function setupUploadRoute(app: express.Application) {
       return res.status(404).json({ error: "File not found" });
     }
 
-    res.download(resolvedPath, "cards.zip");
+    res.download(resolvedPath, path.basename(resolvedPath));
   });
 }
