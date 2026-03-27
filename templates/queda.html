@@ -12,15 +12,13 @@
   src: url('../fonts/Inter-Regular.ttf') format('truetype');
   font-weight: 400;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Bold.ttf') format('truetype');
   font-weight: 700;
 }
-
 @font-face {
-  font-family: 'Inter-Black';
+  font-family: 'Inter';
   src: url('../fonts/Inter-Black.ttf') format('truetype');
   font-weight: 900;
 }
@@ -42,126 +40,130 @@ body {
   align-items: center;
 }
 
-/* ================= CARD ================= */
 .card {
   width: 700px;
   height: 1058px;
   border: 8px solid #e0b84b;
   border-radius: 40px;
   background: #ffffff;
-  padding: 70px 40px 60px 40px;
+  padding: 60px 40px 40px 40px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* distribuição vertical */
+  justify-content: space-between;
   overflow: visible;
   position: relative;
 }
 
-/* ===== SELO PADRÃO ===== */
+/* ===== SELO DINÂMICO ===== */
 .selo {
   position: absolute;
   top: -8px;
   left: -8px;
   width: 130px;
   height: 65px;
-  z-index: 10;
+  background: transparent;
+  display: none;
+  z-index: 999;
 }
 
 .selo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  display: block;
 }
 
-/* LOGO */
+/* TOPO */
+.topo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .logo {
-  text-align: center;
+  margin-bottom: 20px;
 }
-
 .logo img {
   max-width: 240px;
   max-height: 120px;
 }
 
-/* TARJA */
 .tarja {
-  background: #15803d;
+  background: #1a7d00;
   color: #ffffff;
   font-weight: 700;
   font-size: 42px;
   text-align: center;
   padding: 18px 40px;
   border-radius: 999px;
-  margin: 20px auto;
+  margin-bottom: 30px;
   white-space: nowrap;
 }
 
-/* AREA CENTRAL */
+/* BLOCO CENTRAL */
 .area-central {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30px;
-  text-align: center;
+  gap: 25px;
 }
 
-/* TEXTO */
 .texto-topo {
   font-size: 26px;
   line-height: 1.2;
+  max-width: 560px;
+  text-align: center;
   word-break: break-word;
 }
 
-/* VALOR (INALTERADO) */
 .valor-container {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
 }
 
 .valor-texto {
   font-weight: 900;
-  font-size: 260px;
+  font-size: clamp(140px, 22vw, 260px);
   line-height: 1;
   white-space: nowrap;
 }
 
-/* DESCONTO */
 .desconto {
   font-size: 44px;
   font-weight: 700;
 }
 
-/* COMPLEMENTO */
 .complemento {
   font-size: 24px;
   line-height: 1.2;
   max-width: 560px;
+  text-align: center;
+  word-break: break-word;
+}
+
+.legal {
+  font-size: 18px;
+  line-height: 1.2;
+  max-width: 560px;
+  text-align: center;
   word-break: break-word;
 }
 
 /* RODAPÉ */
 .rodape {
   text-align: center;
-  min-height: 70px;
 }
 
-/* UF E URN IGUAIS */
-.uf,
-.urn {
+.uf {
   font-size: 22px;
   font-weight: 700;
 }
 
-/* SEGMENTO PADRÃO CUPOM */
-.segmento-linha {
-  margin-top: 10px;
+.segmento-wrapper {
+  margin-top: 12px;
   font-size: 18px;
-}
-
-.segmento-valor {
-  font-size: 22px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 </style>
@@ -171,16 +173,19 @@ body {
 
 <div class="card">
 
-  <div class="selo">
-    <img src="{{SELO}}" />
+  <!-- SELO DINÂMICO -->
+  <div class="selo" id="selo-container">
+    <img id="selo-img" />
   </div>
 
-  <div class="logo">
-    <img src="{{LOGO}}" />
-  </div>
+  <div class="topo">
+    <div class="logo">
+      <img src="{{LOGO}}" />
+    </div>
 
-  <div class="tarja">
-    QUEDA DE PREÇO
+    <div class="tarja">
+      QUEDA DE PREÇO
+    </div>
   </div>
 
   <div class="area-central">
@@ -203,33 +208,45 @@ body {
       {{COMPLEMENTO}}
     </div>
 
+    <div class="legal">
+      {{LEGAL}}
+    </div>
+
   </div>
 
   <div class="rodape">
+    <div class="uf">{{URN}}</div>
     <div class="uf">{{UF}}</div>
-    <div class="urn">{{URN}}</div>
 
-    <div class="segmento-linha" id="segmento-linha">
-      SEGMENTO DE CLIENTES:
-      <span class="segmento-valor">{{SEGMENTO}}</span>
+    <div class="segmento-wrapper" id="segmento-bloco">
+      SEGMENTO DE CLIENTES: {{SEGMENTO}}
     </div>
   </div>
 
 </div>
 
 <script>
-(function () {
-  const segmento = document.getElementById("segmento-linha");
-  if (!segmento) return;
+window.addEventListener("load", function () {
 
-  const texto = segmento.innerText
-    .replace("SEGMENTO DE CLIENTES:", "")
-    .trim();
+  /* ===== SEGMENTO ===== */
+  const segmento = document.getElementById("segmento-bloco");
+  const valorSegmento = "{{SEGMENTO}}".trim();
 
-  if (!texto) {
-    segmento.style.visibility = "hidden";
+  if ((!valorSegmento || valorSegmento === "{{SEGMENTO}}") && segmento) {
+    segmento.style.display = "none";
   }
-})();
+
+  /* ===== SELO ===== */
+  const seloContainer = document.getElementById("selo-container");
+  const seloImg = document.getElementById("selo-img");
+  const valorSelo = "{{SELO}}".trim();
+
+  if (valorSelo && valorSelo !== "{{SELO}}") {
+    seloImg.src = valorSelo;
+    seloContainer.style.display = "block";
+  }
+
+});
 </script>
 
 </body>

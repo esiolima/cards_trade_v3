@@ -12,13 +12,11 @@
   src: url('../fonts/Inter-Regular.ttf') format('truetype');
   font-weight: 400;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Bold.ttf') format('truetype');
   font-weight: 700;
 }
-
 @font-face {
   font-family: 'Inter';
   src: url('../fonts/Inter-Black.ttf') format('truetype');
@@ -26,160 +24,153 @@
 }
 
 * {
-  text-transform: uppercase;
-  color: #2b4474;
   box-sizing: border-box;
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  color: #1F3C6E;
 }
 
 body {
   margin: 0;
   width: 700px;
   height: 1058px;
-  font-family: 'Inter', sans-serif;
   background: transparent;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* ================= CARD ================= */
 .card {
   width: 700px;
   height: 1058px;
   border: 8px solid #e0b84b;
   border-radius: 40px;
-  padding: 80px 40px 60px 40px;
-  position: relative;
-  overflow: visible;
+  background: #ffffff;
+  padding: 60px 40px 40px 40px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: center;
-  background: #ffffff;
+  overflow: visible;
+  position: relative;
 }
 
-/* SELO */
+/* ===== SELO ===== */
 .selo {
   position: absolute;
   top: -8px;
   left: -8px;
   width: 130px;
   height: 65px;
-  z-index: 10;
+  display: none;
+  z-index: 999;
 }
 
 .selo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
-/* LOGO */
-.logo {
-  text-align: center;
-}
-
-.logo img {
-  max-width: 220px;
-  max-height: 120px;
-}
-
-/* TARJA */
-.tarja {
-  background: #ff7a00;
-  color: #ffffff;
-  padding: 20px 70px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 54px;
-  text-align: center;
-  white-space: nowrap;
-  margin-top: 35px;
-}
-
-.tarja span {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 54px;
-}
-
-/* TEXTO SUPERIOR */
-.texto-topo {
-  text-align: center;
-  font-size: 28px;
-  font-weight: 400;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
-}
-
-/* ===== VALOR RESTAURADO ===== */
-.valor-container {
-  width: 100%;
-  height: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.valor-texto {
-  font-weight: 900;
-  font-size: 480px;
-  line-height: 1;
-  text-align: center;
-  white-space: nowrap;
-}
-
-/* CONTEÚDO INFERIOR */
-.conteudo-inferior {
-  width: 100%;
+/* TOPO */
+.topo {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* COMPLEMENTO */
-.complemento {
-  text-align: center;
-  font-weight: 400;
-  font-size: 28px;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
-  margin-bottom: 25px;
+.logo {
+  margin-bottom: 20px;
+}
+.logo img {
+  max-width: 240px;
+  max-height: 120px;
 }
 
-/* LEGAL */
-.legal {
+.tarja {
+  background: #ff8c00; /* Laranja conforme solicitado */
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 42px;
   text-align: center;
-  font-size: 18px;
-  max-width: 550px;
-  line-height: 1.15;
-  word-break: break-word;
+  padding: 18px 40px;
+  border-radius: 999px;
   margin-bottom: 30px;
+  white-space: nowrap;
+}
+
+/* CENTRAL */
+.area-central {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  flex-grow: 1;
+  justify-content: center;
+}
+
+.texto-topo {
+  font-size: 26px; /* Ajustado para ser idêntico ao queda.html */
+  line-height: 1.2;
+  max-width: 560px;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* VALOR DINÂMICO */
+.valor-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 600px;
+  height: 300px;
+  overflow: hidden;
+}
+
+.valor-texto {
+  font-weight: 900;
+  font-size: 260px;
+  line-height: 0.9;
+  text-align: center;
+  word-break: break-word;
+  width: 100%;
+}
+
+/* "DE DESCONTO" removido conforme solicitado */
+.desconto {
+  display: none;
+}
+
+.complemento {
+  font-size: 24px; /* Ajustado para ser idêntico ao queda.html */
+  line-height: 1.2;
+  max-width: 560px;
+  text-align: center;
+  word-break: break-word;
+}
+
+.legal {
+  font-size: 18px;
+  line-height: 1.2;
+  max-width: 560px;
+  text-align: center;
+  word-break: break-word;
 }
 
 /* RODAPÉ */
 .rodape {
   text-align: center;
-  min-height: 70px;
+  margin-top: 20px;
 }
 
-.uf,
-.urn {
-  font-size: clamp(20px, 2vw, 24px);
+.uf {
+  font-size: 22px;
   font-weight: 700;
 }
 
-.segmento-linha {
-  margin-top: 15px;
+.segmento-wrapper {
+  margin-top: 12px;
   font-size: 18px;
-}
-
-.segmento-valor {
-  font-size: 25px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 </style>
@@ -189,45 +180,48 @@ body {
 
 <div class="card">
 
-  <div class="selo">
-    <img src="{{SELO}}" />
+  <div class="selo" id="selo-container">
+    <img id="selo-img" />
   </div>
 
-  <div class="logo">
-    <img src="{{LOGO}}" />
-  </div>
+  <div class="topo">
+    <div class="logo">
+      <img src="{{LOGO}}" />
+    </div>
 
-  <div class="tarja">
-    <span>PROMOÇÃO</span>
-  </div>
-
-  <div class="texto-topo">
-    {{TEXTO}}
-  </div>
-
-  <div class="valor-container" id="valor-container">
-    <div class="valor-texto" id="valor-texto">
-      {{VALOR}}
+    <div class="tarja">
+      PROMOÇÃO
     </div>
   </div>
 
-  <div class="conteudo-inferior">
-    <div class="complemento">
+  <div class="area-central">
+
+    <div class="texto-topo" id="texto-topo">
+      {{TEXTO}}
+    </div>
+
+    <div class="valor-container" id="valor-container">
+      <div class="valor-texto" id="valor-texto">
+        {{VALOR}}
+      </div>
+    </div>
+
+    <div class="complemento" id="complemento">
       {{COMPLEMENTO}}
     </div>
 
-    <div class="legal">
+    <div class="legal" id="legal">
       {{LEGAL}}
     </div>
 
-    <div class="rodape">
-      <div class="uf">{{UF}}</div>
-      <div class="urn">{{URN}}</div>
+  </div>
 
-      <div class="segmento-linha" id="segmento-linha">
-        SEGMENTO DE CLIENTES:
-        <span class="segmento-valor">{{SEGMENTO}}</span>
-      </div>
+  <div class="rodape">
+    <div class="uf">{{URN}}</div>
+    <div class="uf">{{UF}}</div>
+
+    <div class="segmento-wrapper" id="segmento-bloco">
+      SEGMENTO DE CLIENTES: {{SEGMENTO}}
     </div>
   </div>
 
@@ -236,28 +230,46 @@ body {
 <script>
 window.addEventListener("load", function () {
 
-  const container = document.getElementById("valor-container");
-  const texto = document.getElementById("valor-texto");
+  function autoFit(el, max = 60, min = 16) {
+    let size = max;
+    el.style.fontSize = size + "px";
+    el.style.lineHeight = "0.9";
 
-  if (!container || !texto) return;
+    const containerHeight = el.parentElement.clientHeight;
+    const containerWidth = el.parentElement.clientWidth;
 
-  let fontSize = 480;
-  texto.style.fontSize = fontSize + "px";
+    // Se o elemento não tiver conteúdo, não faz nada
+    if (!el.innerText.trim()) return;
 
-  while (texto.scrollWidth > container.clientWidth && fontSize > 80) {
-    fontSize -= 6;
-    texto.style.fontSize = fontSize + "px";
+    while (
+      (el.scrollHeight > containerHeight || el.scrollWidth > containerWidth) &&
+      size > min
+    ) {
+      size -= 2;
+      el.style.fontSize = size + "px";
+    }
   }
 
-  const segmento = document.getElementById("segmento-linha");
-  if (segmento) {
-    const valor = segmento.innerText
-      .replace("SEGMENTO DE CLIENTES:", "")
-      .trim();
+  // Ajuste dinâmico para o valor em até 3 linhas
+  const valorEl = document.getElementById("valor-texto");
+  autoFit(valorEl, 260, 80);
 
-    if (!valor) {
-      segmento.style.visibility = "hidden";
-    }
+  /* SEGMENTO */
+  const segmento = document.getElementById("segmento-bloco");
+  const valorSegmento = "{{SEGMENTO}}".trim();
+
+  if ((!valorSegmento || valorSegmento === "{{SEGMENTO}}") && segmento) {
+    segmento.style.display = "none";
+  }
+
+  /* SELO */
+  const seloContainer = document.getElementById("selo-container");
+  const seloImg = document.getElementById("selo-img");
+  const valorSelo = "{{SELO}}".trim();
+
+  if (valorSelo && valorSelo !== "{{SELO}}") {
+    seloImg.src = valorSelo;
+    seloContainer.style.display = "block";
   }
 
 });

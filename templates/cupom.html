@@ -35,7 +35,6 @@ body {
   align-items: center;
 }
 
-/* ================= CARD ================= */
 .card {
   width: 700px;
   height: 1057.5px;
@@ -44,32 +43,35 @@ body {
   background: #ffffff;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: center;
-  padding: 60px 20px 30px 20px;
+  padding: 0 20px;
+  overflow: visible; /* permite ultrapassar moldura */
   position: relative;
-  overflow: visible;
   color: #1F3C6E;
 }
 
-/* ===== SELO ===== */
+/* ===== SELO DINÂMICO ===== */
 .selo {
   position: absolute;
   top: -6px;
   left: -6px;
   width: 130px;
   height: 65px;
-  z-index: 10;
+  background: transparent;
+  display: none;
+  z-index: 999;
 }
 
 .selo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  display: block;
 }
 
 /* ===== LOGO ===== */
 .logo {
+  margin-top: 60px;
   height: 154px;
   display: flex;
   align-items: center;
@@ -82,31 +84,33 @@ body {
   object-fit: contain;
 }
 
-/* ===== TEXTO ===== */
+/* ===== TEXTO SUPERIOR ===== */
 .condicao {
+  margin-top: 35px;
+  margin-bottom: 60px;
   max-width: 550px;
   font-size: 28px;
-  text-align: center;
+  font-weight: 400;
   line-height: 1.15;
+  text-align: center;
+  word-break: break-word;
 }
 
 /* ===== BENEFÍCIO ===== */
-.bloco-beneficio {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
 .percentual {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  width: 100%;
+  padding: 0 30px;
+  margin-bottom: 10px;
 }
 
 .numero,
 .percent {
   font-weight: 900;
   font-size: clamp(120px, 25vw, 270px);
+  line-height: 1;
 }
 
 .percent {
@@ -114,29 +118,52 @@ body {
 }
 
 .desconto {
-  margin-top: 1px;
+  margin-top: 10px;
   font-size: clamp(40px, 5vw, 60px);
   font-weight: 700;
 }
 
+/* ===== COMPLEMENTO ===== */
+.complemento {
+  margin-top: 20px;
+  max-width: 550px;
+  font-size: 24px;
+  line-height: 1.15;
+  text-align: center;
+}
+
 /* ===== LEGAL ===== */
 .legal {
+  margin-top: 25px;
   max-width: 550px;
   font-size: 18px;
+  line-height: 1.15;
   text-align: center;
+  word-break: break-word;
+}
+
+/* ===== ESPAÇO FLEX ===== */
+.espaco-flexivel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ===== CUPOM BOX ===== */
 .cupom-box {
-  width: 640px;
-  height: 150px;
+  margin-top: 30px;
+  margin-bottom: 15px;
+  width: 600px;
+  height: 140px;
   background: #16A7E0;
-  border-radius: 24px;
+  border-radius: 20px;
   display: grid;
-  grid-template-columns: 105px 1fr; /* label levemente menor */
-  align-items: center;
+  grid-template-columns: 90px 1fr;
+  overflow: hidden;
 }
-/* LABEL */
+
 .cupom-label {
   display: flex;
   align-items: center;
@@ -144,50 +171,48 @@ body {
 }
 
 .cupom-label span {
-  transform: translateX(-8px) rotate(-90deg);
-  font-size: 30px;
+  transform: rotate(-90deg);
+  font-size: clamp(20px, 2.4vw, 28px);
   font-weight: 700;
   color: #ffffff;
 }
 
-/* ÁREA DO TEXTO */
 .cupom-codigo {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-left: 50px;   /* margem interna real */
-  padding-right: 50px;  /* margem interna real */
-  overflow: hidden;
-}
-
-/* TEXTO */
-#cupom-text {
-  font-size: 100px;
+  padding: 0 40px; /* Padding generoso nas laterais */
+  width: 100%;
+  height: 100%;
   font-weight: 900;
   color: #ffffff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+#cupom-text {
+  font-size: 110px;
+  line-height: 1;
   white-space: nowrap;
+  display: inline-block;
+  margin-right: 20px; /* Margem extra à direita conforme solicitado */
 }
 
 /* ===== RODAPÉ ===== */
 .rodape {
+  margin-bottom: 30px;
   text-align: center;
-  min-height: 70px;
 }
 
-/* UF E URN COM MESMA FORMATAÇÃO */
-.uf,
-.urn {
-  font-size: 22px;
+.uf {
+  font-size: clamp(20px, 2vw, 24px);
   font-weight: 700;
 }
 
-.segmento-linha {
-  margin-top: 10px;
-  font-size: 18px;
-}
-
-.segmento-valor {
-  font-weight: 700;
+.segmento {
+  margin-top: 12px;
+  font-size: clamp(18px, 2vw, 20px);
+  font-weight: 400;
 }
 </style>
 </head>
@@ -195,8 +220,9 @@ body {
 <body>
 <div class="card">
 
-  <div class="selo">
-    <img src="{{SELO}}" alt="Selo">
+  <!-- SELO DINÂMICO -->
+  <div class="selo" id="selo-container">
+    <img id="selo-img" alt="Selo">
   </div>
 
   <div class="logo">
@@ -205,32 +231,32 @@ body {
 
   <div class="condicao">{{TEXTO}}</div>
 
-  <div class="bloco-beneficio">
-    <div class="percentual">
-      <div class="numero">{{VALOR}}</div>
-      <div class="percent">%</div>
-    </div>
-    <div class="desconto">DE DESCONTO</div>
+  <div class="percentual">
+    <div class="numero">{{VALOR}}</div>
+    <div class="percent">%</div>
   </div>
 
-  <div class="legal">{{LEGAL}}</div>
+  <div class="desconto">DE DESCONTO</div>
+
+  <div class="espaco-flexivel">
+    <div class="complemento">{{COMPLEMENTO}}</div>
+    <div class="legal">{{LEGAL}}</div>
+  </div>
 
   <div class="cupom-box">
     <div class="cupom-label">
       <span>CUPOM</span>
     </div>
-
     <div class="cupom-codigo">
       <span id="cupom-text">{{CUPOM}}</span>
     </div>
   </div>
 
   <div class="rodape">
+    <div class="uf">{{URN}}</div>
     <div class="uf">{{UF}}</div>
-    <div class="urn">{{URN}}</div>
-    <div class="segmento-linha">
-      SEGMENTO DE CLIENTES:
-      <span class="segmento-valor">{{SEGMENTO}}</span>
+    <div class="segmento" id="segmento-bloco">
+      SEGMENTO DE CLIENTES: {{SEGMENTO}}
     </div>
   </div>
 
@@ -238,31 +264,50 @@ body {
 
 <script>
 (function () {
+  try {
 
-  const el = document.getElementById("cupom-text");
-  if (!el) return;
+    /* ===== AJUSTE AUTOMÁTICO CUPOM ===== */
+    const el = document.getElementById("cupom-text");
+    if (el) {
+      const container = el.parentElement;
+      const style = window.getComputedStyle(container);
+      const paddingLeft = parseFloat(style.paddingLeft);
+      const paddingRight = parseFloat(style.paddingRight);
+      const larguraDisponivel =
+        container.clientWidth - paddingLeft - paddingRight;
 
-  const container = el.parentElement;
+      let fontSize = 110;
+      const minFontSize = 20;
 
-  const style = window.getComputedStyle(container);
-  const paddingLeft = parseFloat(style.paddingLeft);
-  const paddingRight = parseFloat(style.paddingRight);
+      el.style.whiteSpace = "nowrap";
+      el.style.fontSize = fontSize + "px";
 
-  // largura real interna
-  const larguraUtil =
-    container.clientWidth - paddingLeft - paddingRight - 4; 
-    // margem de segurança de 4px apenas
+      while (el.scrollWidth > larguraDisponivel && fontSize > minFontSize) {
+        fontSize--;
+        el.style.fontSize = fontSize + "px";
+      }
+    }
 
-  let fontSize = 100;
-  const minFontSize = 40; // evita encolher demais
+    /* ===== SEGMENTO ===== */
+    const segmento = document.getElementById("segmento-bloco");
+    const valorSegmento = "{{SEGMENTO}}".trim();
+    if ((!valorSegmento || valorSegmento === "{{SEGMENTO}}") && segmento) {
+      segmento.style.display = "none";
+    }
 
-  el.style.fontSize = fontSize + "px";
+    /* ===== SELO ===== */
+    const seloContainer = document.getElementById("selo-container");
+    const seloImg = document.getElementById("selo-img");
+    const valorSelo = "{{SELO}}".trim();
 
-  while (el.scrollWidth > larguraUtil && fontSize > minFontSize) {
-    fontSize--;
-    el.style.fontSize = fontSize + "px";
+    if (valorSelo && valorSelo !== "{{SELO}}") {
+      seloImg.src = valorSelo;
+      seloContainer.style.display = "block";
+    }
+
+  } catch (e) {
+    console.log("Erro ajuste cupom:", e);
   }
-
 })();
 </script>
 
