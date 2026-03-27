@@ -346,7 +346,13 @@ export class CardGenerator extends EventEmitter {
       await page.setViewport({ width: pageWidth, height: 2000 });
       await page.goto(`file://${jornalHtmlPath}`, { waitUntil: "networkidle0", timeout: 120000 });
       const jornalPdfPath = path.join(OUTPUT_DIR, `jornal_ofertas.pdf`);
-      await page.pdf({ path: jornalPdfPath, width: `${pageWidth}px`, height: "auto", printBackground: true, margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" } });
+      // No Puppeteer, ao definir width, o height não deve ser "auto". Removendo height para permitir que ele seja calculado automaticamente com base no conteúdo.
+      await page.pdf({ 
+        path: jornalPdfPath, 
+        width: `${pageWidth}px`, 
+        printBackground: true, 
+        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" } 
+      });
       return jornalPdfPath;
     } finally {
       await page.close();
