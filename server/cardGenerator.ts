@@ -293,7 +293,7 @@ export class CardGenerator extends EventEmitter {
     const vigencia = rows[0]?.VIGÊNCIA || "00/00 a 00/00";
     const gap = 40;
     const cardWidth = 700;
-    // Largura total da página (3 cards + 2 gaps + margens laterais)
+    // Largura total da página (3 cards + 2 gaps internos + 2 gaps externos)
     const pageWidth = (cardWidth * 3) + (gap * 4); 
     const gridWidth = (cardWidth * 3) + (gap * 2);
     
@@ -304,9 +304,9 @@ export class CardGenerator extends EventEmitter {
     let headerHtml = "";
     if (options.headerPath && fs.existsSync(options.headerPath)) {
       const headerBase64 = this.imageToBase64(options.headerPath);
-      headerHtml = `<div class="header-image-container"><img src="${headerBase64}" class="header-image" /></div>`;
+      headerHtml = `<div class="header-image-container" style="width: ${gridWidth}px; margin: 0 auto;"><img src="${headerBase64}" class="header-image" /></div>`;
     } else {
-      headerHtml = `<div class="header"><h1 class="header-title">OFERTAS DA SEMANA</h1><div class="header-date">${vigencia}</div></div>`;
+      headerHtml = `<div class="header" style="width: ${gridWidth}px; margin: 0 auto;"><h1 class="header-title">OFERTAS DA SEMANA</h1><div class="header-date">${vigencia}</div></div>`;
     }
 
     const footerContent = footerText || "OFERTAS SUJEITAS A SAÍREM DO AR A QUALQUER MOMENTO SEM AVISO PRÉVIO. CONFIRA A REGRA E MIX PARTICIPANTE DE CADA AÇÃO.";
@@ -314,21 +314,19 @@ export class CardGenerator extends EventEmitter {
     let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"><style>
       @page { margin: 0; size: ${pageWidth}px auto; } 
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
-      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; min-height: 100%; overflow-x: hidden; } 
-      body { display: block; width: ${pageWidth}px; margin: 0; background: ${backgroundColor}; -webkit-print-color-adjust: exact; }
+      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; min-height: 100%; } 
+      body { display: block; width: ${pageWidth}px; margin: 0 auto; background: ${backgroundColor}; -webkit-print-color-adjust: exact; }
       .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; width: 100%; } 
       .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; font-family: 'Inter', sans-serif; } 
       .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; font-family: 'Inter', sans-serif; } 
       .header-image-container { width: 100%; line-height: 0; } 
       .header-image { width: 100%; height: auto; display: block; } 
-      .container { padding: ${gap * 2}px; width: ${pageWidth}px; margin: 0 auto; text-align: center; } 
-      .category-section { margin-bottom: ${gap * 3}px; width: 100%; clear: both; text-align: center; display: block; } 
+      .container { padding: ${gap}px; width: ${gridWidth}px; margin: 0 auto; } 
+      .category-section { margin-bottom: ${gap * 2}px; width: 100%; clear: both; text-align: center; } 
       .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: block !important; width: ${gridWidth}px !important; margin: 0 auto !important; text-align: left; }
-      .card-wrapper { display: inline-block !important; vertical-align: top !important; margin-right: ${gap}px !important; margin-bottom: ${gap}px !important; width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; }
-      .card-wrapper:nth-child(3n) { margin-right: 0 !important; } 
+      .cards-grid { display: grid !important; grid-template-columns: repeat(3, ${cardWidth}px) !important; gap: ${gap}px !important; width: ${gridWidth}px !important; margin: 0 auto !important; } 
       .card-content-inner { width: 100%; height: 100%; } 
-      .footer { width: ${pageWidth}px; padding: 100px ${gap * 2}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin-top: 50px; display: block; position: relative; box-sizing: border-box; }
+      .footer { width: ${gridWidth}px; padding: 100px ${gap * 2}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin: 50px auto 0 auto; display: block; box-sizing: border-box; }
     </style></head><body>${headerHtml}<div class="container">`;
 
     for (const [category, categoryRows] of Object.entries(groupedRows)) {
@@ -376,8 +374,6 @@ export class CardGenerator extends EventEmitter {
       
       const jornalPdfPath = path.join(OUTPUT_DIR, `jornal_ofertas.pdf`);
       
-      // No Puppeteer, ao definir width, o height não deve ser "auto". 
-      // Removendo height para permitir que ele seja calculado automaticamente com base no conteúdo do body.
       // Obter a altura real do conteúdo para definir o tamanho exato da página PDF única
       const bodyHeight = await page.evaluate(() => {
         return document.documentElement.getBoundingClientRect().height;
@@ -388,8 +384,7 @@ export class CardGenerator extends EventEmitter {
         width: `${pageWidth}px`,
         height: `${Math.ceil(bodyHeight)}px`,
         printBackground: true, 
-        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" },
-        pageRanges: '1'
+        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" }
       });
       return jornalPdfPath;
     } finally {
