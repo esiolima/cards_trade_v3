@@ -300,14 +300,14 @@ export class CardGenerator extends EventEmitter {
     
     // Calcular altura estimada para evitar que o Puppeteer corte o conteúdo
     const rowCount = Math.ceil(rows.length / 3);
-    const estimatedHeight = 1000 + (rowCount * 1200); // Cabeçalho + (linhas * altura_card) + folga
+    const estimatedHeight = 2000 + (rowCount * 1200); // Cabeçalho + (linhas * altura_card) + folga
 
     let headerHtml = "";
     if (options.headerPath && fs.existsSync(options.headerPath)) {
       const headerBase64 = this.imageToBase64(options.headerPath);
-      headerHtml = `<div class="header-image-container" style="width: ${gridWidth}px; margin: 0 auto;"><img src="${headerBase64}" class="header-image" /></div>`;
+      headerHtml = `<div class="header-image-container" style="width: ${pageWidth}px; margin: 0 auto;"><img src="${headerBase64}" class="header-image" /></div>`;
     } else {
-      headerHtml = `<div class="header" style="width: ${gridWidth}px; margin: 0 auto;"><h1 class="header-title">OFERTAS DA SEMANA</h1><div class="header-date">${vigencia}</div></div>`;
+      headerHtml = `<div class="header" style="width: ${pageWidth}px; margin: 0 auto;"><h1 class="header-title">OFERTAS DA SEMANA</h1><div class="header-date">${vigencia}</div></div>`;
     }
 
     const footerContent = footerText || "OFERTAS SUJEITAS A SAÍREM DO AR A QUALQUER MOMENTO SEM AVISO PRÉVIO. CONFIRA A REGRA E MIX PARTICIPANTE DE CADA AÇÃO.";
@@ -317,17 +317,18 @@ export class CardGenerator extends EventEmitter {
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
       html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; } 
       body { display: block; width: ${pageWidth}px; margin: 0 auto; background: ${backgroundColor}; -webkit-print-color-adjust: exact; }
-      .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; width: 100%; } 
-      .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; font-family: 'Inter', sans-serif; } 
-      .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; font-family: 'Inter', sans-serif; } 
-      .header-image-container { width: 100%; line-height: 0; } 
+      .header { background: #f0f0f0; padding: 80px; text-align: center; border-bottom: 15px solid ${categoryBoxColor}; width: 100%; } 
+      .header-title { font-size: 140px; font-weight: 900; margin: 0; color: #333; letter-spacing: -3px; font-family: 'Inter', sans-serif; } 
+      .header-date { font-size: 70px; font-weight: 700; color: #666; margin-top: 20px; font-family: 'Inter', sans-serif; } 
+      .header-image-container { width: 100%; line-height: 0; overflow: hidden; } 
       .header-image { width: 100%; height: auto; display: block; } 
-      .container { padding: ${gap}px; width: ${gridWidth}px; margin: 0 auto; } 
-      .category-section { margin-bottom: ${gap * 2}px; width: 100%; clear: both; text-align: center; } 
-      .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: grid !important; grid-template-columns: repeat(3, ${cardWidth}px) !important; gap: ${gap}px !important; width: ${gridWidth}px !important; margin: 0 auto !important; } 
+      .container { padding: ${gap}px; width: ${pageWidth}px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; } 
+      .category-section { margin-bottom: ${gap * 3}px; width: ${gridWidth}px; clear: both; text-align: center; display: flex; flex-direction: column; align-items: center; } 
+      .category-title { background: ${categoryBoxColor}; color: white; padding: 35px 80px; font-size: 60px; font-weight: 900; border-radius: 25px; margin-bottom: ${gap * 1.5}px; display: inline-block; text-transform: uppercase; box-shadow: 0 20px 45px rgba(0,0,0,0.3); font-family: 'Inter', sans-serif; } 
+      .cards-grid { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: ${gap}px !important; width: ${gridWidth}px !important; margin: 0 auto !important; } 
+      .card-wrapper { width: ${cardWidth}px; flex-shrink: 0; }
       .card-content-inner { width: 100%; height: 100%; } 
-      .footer { width: ${gridWidth}px; padding: 100px ${gap * 2}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin: 50px auto 0 auto; display: block; box-sizing: border-box; }
+      .footer { width: ${pageWidth}px; padding: 120px ${gap * 3}px; text-align: center; color: ${contrastColor}; font-size: 42px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin: 60px auto 0 auto; display: block; box-sizing: border-box; }
     </style></head><body>${headerHtml}<div class="container">`;
 
     for (const [category, categoryRows] of Object.entries(groupedRows)) {
