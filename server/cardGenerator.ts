@@ -294,6 +294,10 @@ export class CardGenerator extends EventEmitter {
     const gap = 80;
     const cardWidth = 700;
     const pageWidth = (cardWidth * 3) + (gap * 4);
+    
+    // Calcular altura estimada para evitar que o Puppeteer corte o conteúdo
+    const rowCount = Math.ceil(rows.length / 3);
+    const estimatedHeight = 1000 + (rowCount * 1200); // Cabeçalho + (linhas * altura_card) + folga
 
     let headerHtml = "";
     if (options.headerPath && fs.existsSync(options.headerPath)) {
@@ -305,7 +309,24 @@ export class CardGenerator extends EventEmitter {
 
     const footerContent = footerText || "OFERTAS SUJEITAS A SAÍREM DO AR A QUALQUER MOMENTO SEM AVISO PRÉVIO. CONFIRA A REGRA E MIX PARTICIPANTE DE CADA AÇÃO.";
 
-    let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"><style>@page { margin: 0; size: ${pageWidth}px auto; } * { box-sizing: border-box; } html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; } body { display: flex; flex-direction: column; min-height: 100vh; } .footer { margin-top: auto; width: 100%; } .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; } .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; } .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; } .header-image-container { width: 100%; line-height: 0; } .header-image { width: 100%; height: auto; display: block; } .container { padding: ${gap}px; } .category-section { margin-bottom: ${gap * 1.5}px; } .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); } .cards-grid { display: grid; grid-template-columns: repeat(3, ${cardWidth}px); gap: ${gap}px; } .card-wrapper { width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; } .card-content-inner { width: 100%; height: 100%; } .footer { padding: 80px ${gap}px; text-align: center; color: ${contrastColor}; font-size: 32px; font-weight: 700; line-height: 1.4; opacity: 0.9; }</style></head><body>${headerHtml}<div class="container">`;
+    let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"><style>
+      @page { margin: 0; size: ${pageWidth}px auto; } 
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
+      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; } 
+      body { display: block; width: ${pageWidth}px; }
+      .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; width: 100%; } 
+      .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; font-family: 'Inter', sans-serif; } 
+      .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; font-family: 'Inter', sans-serif; } 
+      .header-image-container { width: 100%; line-height: 0; } 
+      .header-image { width: 100%; height: auto; display: block; } 
+      .container { padding: ${gap}px; width: 100%; } 
+      .category-section { margin-bottom: ${gap * 1.5}px; width: 100%; clear: both; } 
+      .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
+      .cards-grid { display: grid; grid-template-columns: repeat(3, ${cardWidth}px); gap: ${gap}px; width: 100%; } 
+      .card-wrapper { width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; } 
+      .card-content-inner { width: 100%; height: 100%; } 
+      .footer { width: 100%; padding: 100px ${gap}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin-top: 50px; }
+    </style></head><body>${headerHtml}<div class="container">`;
 
     for (const [category, categoryRows] of Object.entries(groupedRows)) {
       html += `<div class="category-section"><div class="category-title">${category}</div><div class="cards-grid">`;
@@ -336,23 +357,29 @@ export class CardGenerator extends EventEmitter {
       html += `</div></div>`;
     }
 
-    html += `</div><div class="footer" style="width: ${pageWidth}px; text-align: center; padding: 80px ${gap}px; color: ${contrastColor}; font-size: 32px; font-weight: 700; line-height: 1.4; opacity: 0.9;">${footerContent}</div></body></html>`;
+    html += `</div><div class="footer">${footerContent}</div></body></html>`;
 
     const jornalHtmlPath = path.join(TMP_DIR, `jornal_completo.html`);
     fs.writeFileSync(jornalHtmlPath, html);
 
     const page = await this.browser!.newPage();
     try {
-      await page.setViewport({ width: pageWidth, height: 1 }); // Altura mínima para que o conteúdo se expanda naturalmente
+      // Definir viewport grande para garantir que o layout grid seja renderizado corretamente
+      await page.setViewport({ width: pageWidth, height: estimatedHeight }); 
       await page.goto(`file://${jornalHtmlPath}`, { waitUntil: "networkidle0", timeout: 120000 });
+      
+      // Forçar a espera pelas fontes do Google
+      await page.evaluateHandle('document.fonts.ready');
+      
       const jornalPdfPath = path.join(OUTPUT_DIR, `jornal_ofertas.pdf`);
-      // No Puppeteer, ao definir width, o height não deve ser "auto". Removendo height para permitir que ele seja calculado automaticamente com base no conteúdo.
-            await page.pdf({ 
+      
+      // No Puppeteer, ao definir width, o height não deve ser "auto". 
+      // Removendo height para permitir que ele seja calculado automaticamente com base no conteúdo do body.
+      await page.pdf({ 
         path: jornalPdfPath, 
         width: `${pageWidth}px`, 
         printBackground: true, 
-        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" },
-
+        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" }
       });
       return jornalPdfPath;
     } finally {
