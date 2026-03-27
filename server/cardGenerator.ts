@@ -313,9 +313,9 @@ export class CardGenerator extends EventEmitter {
     const footerContent = footerText || "OFERTAS SUJEITAS A SAÍREM DO AR A QUALQUER MOMENTO SEM AVISO PRÉVIO. CONFIRA A REGRA E MIX PARTICIPANTE DE CADA AÇÃO.";
 
     let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"><style>
-      @page { margin: 0; size: ${pageWidth}px auto; } 
+      @page { margin: 0; size: ${pageWidth}px ${estimatedHeight}px; } 
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
-      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; min-height: 100%; } 
+      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; } 
       body { display: block; width: ${pageWidth}px; margin: 0 auto; background: ${backgroundColor}; -webkit-print-color-adjust: exact; }
       .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; width: 100%; } 
       .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; font-family: 'Inter', sans-serif; } 
