@@ -293,7 +293,9 @@ export class CardGenerator extends EventEmitter {
     const vigencia = rows[0]?.VIGÊNCIA || "00/00 a 00/00";
     const gap = 80;
     const cardWidth = 700;
-    const pageWidth = (cardWidth * 3) + (gap * 4);
+    // Largura exata para 3 cards + 2 gaps entre eles + margens laterais
+    const pageWidth = (cardWidth * 3) + (gap * 4); 
+    const gridWidth = (cardWidth * 3) + (gap * 2);
     
     // Calcular altura estimada para evitar que o Puppeteer corte o conteúdo
     const rowCount = Math.ceil(rows.length / 3);
@@ -319,10 +321,10 @@ export class CardGenerator extends EventEmitter {
       .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; font-family: 'Inter', sans-serif; } 
       .header-image-container { width: 100%; line-height: 0; } 
       .header-image { width: 100%; height: auto; display: block; } 
-      .container { padding: ${gap}px; width: ${pageWidth}px; } 
-      .category-section { margin-bottom: ${gap * 1.5}px; width: 100%; clear: both; text-align: center; } 
+      .container { padding: ${gap}px; width: ${pageWidth}px; margin: 0 auto; } 
+      .category-section { margin-bottom: ${gap * 1.5}px; width: 100%; clear: both; text-align: center; display: block; } 
       .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: grid; grid-template-columns: repeat(3, ${cardWidth}px); gap: ${gap}px; width: ${cardWidth * 3 + gap * 2}px; margin: 0 auto; } 
+      .cards-grid { display: grid !important; grid-template-columns: ${cardWidth}px ${cardWidth}px ${cardWidth}px !important; gap: ${gap}px !important; width: ${gridWidth}px !important; margin: 0 auto !important; justify-content: center !important; } 
       .card-wrapper { width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; } 
       .card-content-inner { width: 100%; height: 100%; } 
       .footer { width: 100%; padding: 100px ${gap}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin-top: 50px; }
