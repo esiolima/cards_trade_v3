@@ -293,9 +293,10 @@ export class CardGenerator extends EventEmitter {
     const vigencia = rows[0]?.VIGÊNCIA || "00/00 a 00/00";
     const gap = 40;
     const cardWidth = 700;
-    // Largura total da página (3 cards + 2 gaps internos + 2 gaps externos)
-    const pageWidth = (cardWidth * 3) + (gap * 4); 
-    const gridWidth = (cardWidth * 3) + (gap * 2);
+    // Largura do grid de 3 cards com 2 gaps internos
+    const gridWidth = (cardWidth * 3) + (gap * 2); 
+    // Largura total da página (grid + 2 gaps externos para centralização)
+    const pageWidth = gridWidth + (gap * 2);
     
     // Calcular altura estimada para evitar que o Puppeteer corte o conteúdo
     const rowCount = Math.ceil(rows.length / 3);
@@ -370,7 +371,7 @@ export class CardGenerator extends EventEmitter {
       await page.goto(`file://${jornalHtmlPath}`, { waitUntil: "networkidle0", timeout: 120000 });
       
       // Forçar a espera pelas fontes do Google
-      await page.evaluateHandle('document.fonts.ready');
+      await page.evaluateHandle("document.fonts.ready");
       
       const jornalPdfPath = path.join(OUTPUT_DIR, `jornal_ofertas.pdf`);
       
