@@ -314,22 +314,21 @@ export class CardGenerator extends EventEmitter {
     let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"><style>
       @page { margin: 0; size: ${pageWidth}px auto; } 
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
-      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; min-height: 100%; } 
+      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; min-height: 100%; overflow-x: hidden; } 
       body { display: block; width: ${pageWidth}px; margin: 0; background: ${backgroundColor}; -webkit-print-color-adjust: exact; }
       .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; width: 100%; } 
       .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; font-family: 'Inter', sans-serif; } 
       .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; font-family: 'Inter', sans-serif; } 
       .header-image-container { width: 100%; line-height: 0; } 
       .header-image { width: 100%; height: auto; display: block; } 
-      .container { padding: ${gap * 2}px; width: ${pageWidth}px; margin: 0; } 
-      .category-section { margin-bottom: ${gap * 3}px; width: 100%; clear: both; text-align: left; } 
+      .container { padding: ${gap * 2}px; width: ${pageWidth}px; margin: 0 auto; text-align: center; } 
+      .category-section { margin-bottom: ${gap * 3}px; width: 100%; clear: both; text-align: center; display: block; } 
       .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: block !important; width: ${gridWidth}px !important; margin: 0; }
-      .card-wrapper { display: inline-block !important; vertical-align: top !important; margin-right: ${gap}px !important; margin-bottom: ${gap}px !important; }
+      .cards-grid { display: block !important; width: ${gridWidth}px !important; margin: 0 auto !important; text-align: left; }
+      .card-wrapper { display: inline-block !important; vertical-align: top !important; margin-right: ${gap}px !important; margin-bottom: ${gap}px !important; width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; }
       .card-wrapper:nth-child(3n) { margin-right: 0 !important; } 
-      .card-wrapper { width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; } 
       .card-content-inner { width: 100%; height: 100%; } 
-      .footer { width: 100%; padding: 100px ${gap}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin-top: 50px; }
+      .footer { width: ${pageWidth}px; padding: 100px ${gap * 2}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin-top: 50px; display: block; position: relative; box-sizing: border-box; }
     </style></head><body>${headerHtml}<div class="container">`;
 
     for (const [category, categoryRows] of Object.entries(groupedRows)) {
