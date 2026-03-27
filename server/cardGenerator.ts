@@ -97,168 +97,52 @@ export class CardGenerator extends EventEmitter {
     let mimeType = `image/${ext}`;
     if (ext === "svg") mimeType = "image/svg+xml";
     if (ext === "jpg") mimeType = "image/jpeg";
-
+    if (ext === "png") mimeType = "image/png";
+    
     return `data:${mimeType};base64,${buffer.toString("base64")}`;
   }
 
-  /**
-   * Busca inteligente de logo (Melhorada):
-   * 1. Tenta o nome exato fornecido.
-   * 2. Tenta o nome sem espaços e em minúsculo com várias extensões.
-   * 3. Tenta buscar por prefixo (se o arquivo começa com o que foi digitado).
-   * 4. Retorna 'blank.png' se nada for encontrado.
-   */
   private findLogoFile(logoName: string): string {
-    if (!logoName || String(logoName).trim() === "") return "blank.png";
-
-    const cleanName = String(logoName).trim();
-    const extensions = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
-
-    if (fs.existsSync(path.join(LOGOS_DIR, cleanName))) {
-      return cleanName;
-    }
-
-    const searchName = cleanName.toLowerCase();
-    const filesInLogos = fs.readdirSync(LOGOS_DIR);
-
-    for (const ext of extensions) {
-      const target = searchName.endsWith(ext) ? searchName : searchName + ext;
-      const found = filesInLogos.find(f => f.toLowerCase() === target);
-      if (found) return found;
-    }
-
-    const validFiles = filesInLogos.filter(f => {
-      const ext = path.extname(f).toLowerCase();
-      return extensions.includes(ext);
-    });
-
-    const prefixMatch = validFiles.find(f => {
-      const baseName = path.parse(f).name.toLowerCase();
-      return baseName.startsWith(searchName);
-    });
-
-    if (prefixMatch) return prefixMatch;
-
-    return "blank.png";
+    if (!logoName) return "blank.png";
+    const files = fs.readdirSync(LOGOS_DIR);
+    const search = String(logoName).toLowerCase().trim();
+    const found = files.find(f => f.toLowerCase().includes(search));
+    return found || "blank.png";
   }
 
-  async processExcel(excelFilePath: string): Promise<any[]> {
-    await this.initialize();
-    
-    const workbook = xlsx.readFile(excelFilePath);
+  async processExcel(filePath: string): Promise<any[]> {
+    const workbook = xlsx.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
     
     const cards: any[] = [];
-    const total = rows.length;
-    let processed = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const tipo = this.normalizeType(row.tipo);
+      if (!tipo) continue;
 
-    if (fs.existsSync(OUTPUT_DIR)) {
-      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-        if (file.endsWith(".pdf") || file.endsWith(".zip")) {
-          try { fs.unlinkSync(path.join(OUTPUT_DIR, file)); } catch(e) {}
-        }
+      cards.push({
+        id: `${i + 1}_${tipo}_${this.sanitizeFileName(row.categoria || "outros")}.pdf`,
+        template: tipo,
+        data: row
       });
     }
-
-    const BATCH_SIZE = 3;
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const batch = rows.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(async (row, index) => {
-        const currentIdx = i + index;
-        const tipo = this.normalizeType(row.tipo);
-        if (!tipo) return;
-
-        const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
-        if (!fs.existsSync(templatePath)) return;
-
-        let html = fs.readFileSync(templatePath, "utf8");
-        let valorFinal = String(row.valor ?? "");
-        if (tipo !== "promocao") {
-          valorFinal = valorFinal.replace(/%/g, "").trim();
-        }
-
-        const logoFile = this.findLogoFile(row.logo);
-        const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, logoFile));
-        const seloBase64 = row.selo ? this.imageToBase64(path.join(SELOS_DIR, row.selo.toLowerCase() === "nova" ? "acaonova.png" : row.selo.toLowerCase() === "renovada" ? "acaorenovada.png" : "")) : "";
-        const segmentoRaw = row.segmento && String(row.segmento).trim() !== "" ? String(row.segmento).trim() : "";
-
-        html = html
-          .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
-          .replaceAll("{{VALOR}}", valorFinal)
-          .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
-          .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-          .replaceAll("{{SEGMENTO}}", segmentoRaw)
-          .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
-          .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
-          .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
-          .replaceAll("{{LOGO}}", logoBase64)
-          .replaceAll("{{SELO}}", seloBase64);
-
-        const tmpHtmlPath = path.join(TMP_DIR, `card_${currentIdx + 1}.html`);
-        fs.writeFileSync(tmpHtmlPath, html);
-
-        const page = await this.browser!.newPage();
-        try {
-          await page.setViewport({ width: 700, height: 1058 });
-          await page.goto(`file://${tmpHtmlPath}`, { waitUntil: "networkidle0", timeout: 45000 });
-
-          const ordemFinal = row.ordem && String(row.ordem).trim() !== "" ? String(row.ordem).trim() : String(currentIdx + 1);
-          const categoriaRaw = row.categoria && String(row.categoria).trim() !== "" ? String(row.categoria).trim() : "sem-categoria";
-          const categoria = this.sanitizeFileName(categoriaRaw);
-          const pdfName = `${ordemFinal}_${tipo}_${categoria}.pdf`;
-          const pdfPath = path.join(OUTPUT_DIR, pdfName);
-
-          await page.pdf({
-            path: pdfPath,
-            width: "700px",
-            height: "1058px",
-            printBackground: true,
-            margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" },
-          });
-
-          cards.push({ id: pdfName, template: tipo, data: row });
-        } catch (err) {
-          console.error(`Erro ao gerar card na linha ${currentIdx + 1}:`, err);
-        } finally {
-          await page.close();
-        }
-
-        processed++;
-        this.emit("progress", { processed, total, percentage: Math.round((processed / total) * 100) });
-      }));
-    }
-
     return cards;
   }
 
   async generateZip(): Promise<string> {
-    const date = this.getDateStamp();
-    const zipPath = path.join(OUTPUT_DIR, `cards_${date}.zip`);
+    const zipPath = path.join(OUTPUT_DIR, `cards_${this.getDateStamp()}.zip`);
     const output = fs.createWriteStream(zipPath);
     const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(output);
 
-    return new Promise((resolve, reject) => {
-      output.on("close", () => resolve(zipPath));
-      archive.on("error", (err) => reject(err));
-      archive.pipe(output);
+    const files = fs.readdirSync(OUTPUT_DIR).filter(f => f.endsWith(".pdf") && !f.startsWith("jornal_"));
+    for (const file of files) {
+      archive.file(path.join(OUTPUT_DIR, file), { name: file });
+    }
 
-      const files = fs.readdirSync(OUTPUT_DIR);
-      let added = 0;
-      files.forEach((file) => {
-        if (file.endsWith(".pdf") && !file.includes("jornal_ofertas")) {
-          archive.file(path.join(OUTPUT_DIR, file), { name: file });
-          added++;
-        }
-      });
-
-      if (added === 0) {
-        reject(new Error("Nenhum arquivo PDF encontrado para compactar."));
-        return;
-      }
-
-      archive.finalize();
-    });
+    await archive.finalize();
+    return zipPath;
   }
 
   private getContrastColor(hexColor: string): string {
@@ -293,21 +177,18 @@ export class CardGenerator extends EventEmitter {
     const vigencia = rows[0]?.VIGÊNCIA || "00/00 a 00/00";
     const gap = 40;
     const cardWidth = 700;
-    // Largura do grid de 3 cards com 2 gaps internos
     const gridWidth = (cardWidth * 3) + (gap * 2); 
-    // Largura total da página (grid + 2 gaps externos para centralização)
-    const pageWidth = gridWidth + (gap * 2);
+    const pageWidth = gridWidth + (gap * 4); // Margem extra para segurança
     
-    // Calcular altura estimada para evitar que o Puppeteer corte o conteúdo
     const rowCount = Math.ceil(rows.length / 3);
-    const estimatedHeight = 2000 + (rowCount * 1200); // Cabeçalho + (linhas * altura_card) + folga
+    const estimatedHeight = 3000 + (rowCount * 1300); // Altura generosa para evitar cortes
 
     let headerHtml = "";
     if (options.headerPath && fs.existsSync(options.headerPath)) {
       const headerBase64 = this.imageToBase64(options.headerPath);
-      headerHtml = `<div class="header-image-container" style="width: ${pageWidth}px; margin: 0 auto;"><img src="${headerBase64}" class="header-image" /></div>`;
+      headerHtml = `<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center"><img src="${headerBase64}" style="width: 100%; display: block;" /></td></tr></table>`;
     } else {
-      headerHtml = `<div class="header" style="width: ${pageWidth}px; margin: 0 auto;"><h1 class="header-title">OFERTAS DA SEMANA</h1><div class="header-date">${vigencia}</div></div>`;
+      headerHtml = `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f0f0f0; border-bottom: 20px solid ${categoryBoxColor};"><tr><td align="center" style="padding: 100px 0;"><h1 style="font-size: 150px; font-weight: 900; margin: 0; color: #333; font-family: 'Inter', sans-serif;">OFERTAS DA SEMANA</h1><div style="font-size: 80px; font-weight: 700; color: #666; margin-top: 20px; font-family: 'Inter', sans-serif;">${vigencia}</div></td></tr></table>`;
     }
 
     const footerContent = footerText || "OFERTAS SUJEITAS A SAÍREM DO AR A QUALQUER MOMENTO SEM AVISO PRÉVIO. CONFIRA A REGRA E MIX PARTICIPANTE DE CADA AÇÃO.";
@@ -316,75 +197,58 @@ export class CardGenerator extends EventEmitter {
       @page { margin: 0; size: ${pageWidth}px ${estimatedHeight}px; } 
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
       html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; } 
-      body { display: block; width: ${pageWidth}px; margin: 0 auto; background: ${backgroundColor}; -webkit-print-color-adjust: exact; }
-      .header { background: #f0f0f0; padding: 80px; text-align: center; border-bottom: 15px solid ${categoryBoxColor}; width: 100%; } 
-      .header-title { font-size: 140px; font-weight: 900; margin: 0; color: #333; letter-spacing: -3px; font-family: 'Inter', sans-serif; } 
-      .header-date { font-size: 70px; font-weight: 700; color: #666; margin-top: 20px; font-family: 'Inter', sans-serif; } 
-      .header-image-container { width: 100%; line-height: 0; overflow: hidden; } 
-      .header-image { width: 100%; height: auto; display: block; } 
-      .container { padding: ${gap}px; width: ${pageWidth}px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; } 
-      .category-section { margin-bottom: ${gap * 3}px; width: ${gridWidth}px; clear: both; text-align: center; display: flex; flex-direction: column; align-items: center; } 
-      .category-title { background: ${categoryBoxColor}; color: white; padding: 35px 80px; font-size: 60px; font-weight: 900; border-radius: 25px; margin-bottom: ${gap * 1.5}px; display: inline-block; text-transform: uppercase; box-shadow: 0 20px 45px rgba(0,0,0,0.3); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: ${gap}px !important; width: ${gridWidth}px !important; margin: 0 auto !important; } 
-      .card-wrapper { width: ${cardWidth}px; flex-shrink: 0; }
-      .card-content-inner { width: 100%; height: 100%; } 
-      .footer { width: ${pageWidth}px; padding: 120px ${gap * 3}px; text-align: center; color: ${contrastColor}; font-size: 42px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin: 60px auto 0 auto; display: block; box-sizing: border-box; }
-    </style></head><body>${headerHtml}<div class="container">`;
+      body { display: block; width: ${pageWidth}px; margin: 0 auto; background: ${backgroundColor}; }
+      .card-container { width: ${cardWidth}px; height: 100%; }
+    </style></head><body>${headerHtml}<table width="100%" border="0" cellspacing="0" cellpadding="${gap}" style="background: ${backgroundColor};"><tr><td align="center">`;
 
     for (const [category, categoryRows] of Object.entries(groupedRows)) {
-      html += `<div class="category-section"><div class="category-title">${category}</div><div class="cards-grid">`;
-      for (const row of categoryRows) {
-        const tipo = this.normalizeType(row.tipo);
-        if (!tipo) continue;
-        const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
-        if (!fs.existsSync(templatePath)) continue;
-        let cardHtml = fs.readFileSync(templatePath, "utf8");
-        let valorFinal = String(row.valor ?? "");
-        if (tipo !== "promocao") valorFinal = valorFinal.replace(/%/g, "").trim();
+      // Título da Categoria
+      html += `<table width="${gridWidth}" border="0" cellspacing="0" cellpadding="0" style="margin-top: 100px; margin-bottom: 60px;"><tr><td align="center"><div style="background: ${categoryBoxColor}; color: white; padding: 40px 100px; font-size: 70px; font-weight: 900; border-radius: 30px; display: inline-block; text-transform: uppercase; font-family: 'Inter', sans-serif; box-shadow: 0 20px 50px rgba(0,0,0,0.4);">${category}</div></td></tr></table>`;
+      
+      // Grid de Cards usando Tabelas
+      html += `<table width="${gridWidth}" border="0" cellspacing="${gap}" cellpadding="0">`;
+      
+      for (let i = 0; i < categoryRows.length; i += 3) {
+        const chunk = categoryRows.slice(i, i + 3);
+        html += `<tr>`;
         
-        const logoFile = this.findLogoFile(row.logo);
-        const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, logoFile));
-        const seloBase64 = row.selo ? this.imageToBase64(path.join(SELOS_DIR, row.selo.toLowerCase() === "nova" ? "acaonova.png" : row.selo.toLowerCase() === "renovada" ? "acaorenovada.png" : "")) : "";
-        const segmentoRaw = row.segmento && String(row.segmento).trim() !== "" ? String(row.segmento).trim() : "";
-        
-        cardHtml = cardHtml.replaceAll("{{TEXTO}}", String(row.texto ?? "")).replaceAll("{{VALOR}}", valorFinal).replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? "")).replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-          .replaceAll("{{SEGMENTO}}", segmentoRaw)
-          .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
-          .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
-          .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
-          .replaceAll("{{LOGO}}", logoBase64)
-          .replaceAll("{{SELO}}", seloBase64);
-        
-        html += `<div class="card-wrapper"><div class="card-content-inner">${cardHtml}</div></div>`;
+        // Se for a última linha e tiver menos de 3 cards, centralizamos usando uma tabela interna ou células vazias
+        if (chunk.length < 3) {
+          html += `<td align="center" colspan="3"><table border="0" cellspacing="${gap}" cellpadding="0"><tr>`;
+          for (const row of chunk) {
+            const cardHtml = this.renderCard(row);
+            html += `<td valign="top"><div class="card-container">${cardHtml}</div></td>`;
+          }
+          html += `</tr></table></td>`;
+        } else {
+          for (const row of chunk) {
+            const cardHtml = this.renderCard(row);
+            html += `<td valign="top" align="center"><div class="card-container">${cardHtml}</div></td>`;
+          }
+        }
+        html += `</tr>`;
       }
-      html += `</div></div>`;
+      html += `</table>`;
     }
 
-    html += `</div><div class="footer">${footerContent}</div></body></html>`;
+    html += `</td></tr></table><table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 150px; margin-bottom: 200px;"><tr><td align="center" style="padding: 0 100px; color: ${contrastColor}; font-size: 45px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif;">${footerContent}</td></tr></table></body></html>`;
 
     const jornalHtmlPath = path.join(TMP_DIR, `jornal_completo.html`);
     fs.writeFileSync(jornalHtmlPath, html);
 
     const page = await this.browser!.newPage();
     try {
-      // Definir viewport grande para garantir que o layout grid seja renderizado corretamente
       await page.setViewport({ width: pageWidth, height: estimatedHeight }); 
       await page.goto(`file://${jornalHtmlPath}`, { waitUntil: "networkidle0", timeout: 120000 });
-      
-      // Forçar a espera pelas fontes do Google
       await page.evaluateHandle("document.fonts.ready");
       
+      const bodyHeight = await page.evaluate(() => document.documentElement.scrollHeight);
       const jornalPdfPath = path.join(OUTPUT_DIR, `jornal_ofertas.pdf`);
-      
-      // Obter a altura real do conteúdo para definir o tamanho exato da página PDF única
-      const bodyHeight = await page.evaluate(() => {
-        return document.documentElement.getBoundingClientRect().height;
-      });
 
       await page.pdf({ 
         path: jornalPdfPath, 
         width: `${pageWidth}px`,
-        height: `${Math.ceil(bodyHeight)}px`,
+        height: `${Math.ceil(bodyHeight) + 200}px`,
         printBackground: true, 
         margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" }
       });
@@ -392,5 +256,32 @@ export class CardGenerator extends EventEmitter {
     } finally {
       await page.close();
     }
+  }
+
+  private renderCard(row: any): string {
+    const tipo = this.normalizeType(row.tipo);
+    if (!tipo) return "";
+    const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
+    if (!fs.existsSync(templatePath)) return "";
+    
+    let cardHtml = fs.readFileSync(templatePath, "utf8");
+    let valorFinal = String(row.valor ?? "");
+    if (tipo !== "promocao") valorFinal = valorFinal.replace(/%/g, "").trim();
+    
+    const logoFile = this.findLogoFile(row.logo);
+    const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, logoFile));
+    const seloBase64 = row.selo ? this.imageToBase64(path.join(SELOS_DIR, row.selo.toLowerCase() === "nova" ? "acaonova.png" : row.selo.toLowerCase() === "renovada" ? "acaorenovada.png" : "")) : "";
+    const segmentoRaw = row.segmento && String(row.segmento).trim() !== "" ? String(row.segmento).trim() : "";
+    
+    return cardHtml.replaceAll("{{TEXTO}}", String(row.texto ?? ""))
+      .replaceAll("{{VALOR}}", valorFinal)
+      .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
+      .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
+      .replaceAll("{{SEGMENTO}}", segmentoRaw)
+      .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
+      .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
+      .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
+      .replaceAll("{{LOGO}}", logoBase64)
+      .replaceAll("{{SELO}}", seloBase64);
   }
 }
