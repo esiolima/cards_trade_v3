@@ -36,7 +36,6 @@ Testes
 [x] Testar geração de PDFs
 [x] Testar download de ZIP
 [x] Testar progresso em tempo real
-
 Bugs Identificados
 [x] Card Cupom: logo não aparecendo
 [x] Card Cupom: palavra "cupom" muito pequena (90 graus)

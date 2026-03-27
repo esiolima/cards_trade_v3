@@ -1,5 +1,4 @@
 FROM node:20-slim
-
 RUN apt-get update && apt-get install -y \
     chromium \
     ca-certificates \
@@ -37,18 +36,11 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
-
+RUN npm install --legacy-peer-deps
 COPY . .
-
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
 RUN npm run build
-
-EXPOSE 3000
-
+EXPOSE 8080
 CMD ["npm", "start"]
