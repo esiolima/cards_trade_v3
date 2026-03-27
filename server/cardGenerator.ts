@@ -312,17 +312,17 @@ export class CardGenerator extends EventEmitter {
     let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet"><style>
       @page { margin: 0; size: ${pageWidth}px auto; } 
       * { box-sizing: border-box; -webkit-print-color-adjust: exact; } 
-      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; } 
-      body { display: block; width: ${pageWidth}px; }
+      html, body { margin: 0; padding: 0; background: ${backgroundColor}; font-family: 'Inter', sans-serif; width: ${pageWidth}px; overflow-x: hidden; } 
+      body { display: flex; flex-direction: column; align-items: center; width: ${pageWidth}px; min-height: 100vh; }
       .header { background: #f0f0f0; padding: 60px; text-align: center; border-bottom: 10px solid ${categoryBoxColor}; width: 100%; } 
       .header-title { font-size: 120px; font-weight: 900; margin: 0; color: #333; letter-spacing: -2px; font-family: 'Inter', sans-serif; } 
       .header-date { font-size: 60px; font-weight: 700; color: #666; margin-top: 10px; font-family: 'Inter', sans-serif; } 
       .header-image-container { width: 100%; line-height: 0; } 
       .header-image { width: 100%; height: auto; display: block; } 
-      .container { padding: ${gap}px; width: 100%; } 
-      .category-section { margin-bottom: ${gap * 1.5}px; width: 100%; clear: both; } 
-      .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: grid; grid-template-columns: repeat(3, ${cardWidth}px); gap: ${gap}px; width: 100%; } 
+      .container { padding: ${gap}px; width: 100%; display: flex; flex-direction: column; align-items: center; } 
+      .category-section { margin-bottom: ${gap * 1.5}px; width: 100%; display: flex; flex-direction: column; align-items: center; clear: both; } 
+      .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; align-self: center; } 
+      .cards-grid { display: grid; grid-template-columns: repeat(3, ${cardWidth}px); gap: ${gap}px; justify-content: center; width: 100%; } 
       .card-wrapper { width: ${cardWidth}px; height: 1058px; background: white; border-radius: 30px; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.3); position: relative; } 
       .card-content-inner { width: 100%; height: 100%; } 
       .footer { width: 100%; padding: 100px ${gap}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin-top: 50px; }
@@ -375,11 +375,20 @@ export class CardGenerator extends EventEmitter {
       
       // No Puppeteer, ao definir width, o height não deve ser "auto". 
       // Removendo height para permitir que ele seja calculado automaticamente com base no conteúdo do body.
+      // Obter a altura real do conteúdo para definir o tamanho exato da página PDF única
+      const bodyHeight = await page.evaluate(() => {
+        const body = document.body;
+        const html = document.documentElement;
+        return Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
+      });
+
       await page.pdf({ 
         path: jornalPdfPath, 
-        width: `${pageWidth}px`, 
+        width: `${pageWidth}px`,
+        height: `${bodyHeight + 100}px`, // Altura real do conteúdo + margem de segurança
         printBackground: true, 
-        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" }
+        margin: { top: "0px", right: "0px", bottom: "0px", left: "0px" },
+        pageRanges: '1' // Garante que apenas a primeira (e única) página seja gerada
       });
       return jornalPdfPath;
     } finally {
