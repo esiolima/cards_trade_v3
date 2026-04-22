@@ -52,13 +52,19 @@ export class CardGenerator extends EventEmitter {
   }
 
   imageToBase64(imagePath: string): string {
-    if (!imagePath || !fs.existsSync(imagePath)) return "";
-    const ext = path.extname(imagePath).replace(".", "");
-    const buffer = fs.readFileSync(imagePath);
-    return `data:image/${ext};base64,${buffer.toString("base64")}`;
+    try {
+      if (!imagePath || !fs.existsSync(imagePath)) return "";
+      const stat = fs.statSync(imagePath);
+      if (!stat.isFile()) return "";
+
+      const ext = path.extname(imagePath).replace(".", "");
+      const buffer = fs.readFileSync(imagePath);
+      return `data:image/${ext};base64,${buffer.toString("base64")}`;
+    } catch {
+      return "";
+    }
   }
 
-  // 🔹 compatível com router
   async processExcel(excelFilePath: string): Promise<string> {
     return await this.generateCards(excelFilePath);
   }
@@ -66,14 +72,16 @@ export class CardGenerator extends EventEmitter {
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    // limpa saída
+    // 🔥 limpa saída com segurança
     fs.readdirSync(OUTPUT_DIR).forEach((file) => {
       const full = path.join(OUTPUT_DIR, file);
-      if (fs.statSync(full).isFile()) {
-        if (file.endsWith(".pdf") || file.endsWith(".zip")) {
+
+      try {
+        const stat = fs.statSync(full);
+        if (stat.isFile() && (file.endsWith(".pdf") || file.endsWith(".zip"))) {
           fs.unlinkSync(full);
         }
-      }
+      } catch {}
     });
 
     const workbook = xlsx.readFile(excelFilePath);
@@ -160,9 +168,13 @@ export class CardGenerator extends EventEmitter {
 
     fs.readdirSync(OUTPUT_DIR).forEach((file) => {
       const full = path.join(OUTPUT_DIR, file);
-      if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
-        archive.file(full, { name: file });
-      }
+
+      try {
+        const stat = fs.statSync(full);
+        if (stat.isFile() && file.endsWith(".pdf")) {
+          archive.file(full, { name: file });
+        }
+      } catch {}
     });
 
     await archive.finalize();
@@ -170,19 +182,23 @@ export class CardGenerator extends EventEmitter {
     return zipPath;
   }
 
-  // 🔹 JORNAL SIMPLES ESTÁVEL
   async generateJornal(): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
     const files = fs
       .readdirSync(OUTPUT_DIR)
-      .filter((f) => {
-        const full = path.join(OUTPUT_DIR, f);
-        return (
-          fs.statSync(full).isFile() &&
-          f.endsWith(".pdf") &&
-          !f.includes("jornal")
-        );
+      .filter((file) => {
+        try {
+          const full = path.join(OUTPUT_DIR, file);
+          const stat = fs.statSync(full);
+          return (
+            stat.isFile() &&
+            file.endsWith(".pdf") &&
+            !file.includes("jornal")
+          );
+        } catch {
+          return false;
+        }
       });
 
     let html = `<html><body style="margin:0;">`;
