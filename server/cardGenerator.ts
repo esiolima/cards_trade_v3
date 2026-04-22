@@ -66,7 +66,6 @@ export class CardGenerator extends EventEmitter {
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    // limpar diretórios
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
       fs.readdirSync(dir).forEach((file) => {
         const full = path.join(dir, file);
@@ -208,23 +207,22 @@ export class CardGenerator extends EventEmitter {
         .grid {
           display: grid;
           grid-template-columns: repeat(3, 1080px);
-          column-gap: 20px;
-          row-gap: 20px;
+          column-gap: 16px;
+          row-gap: 16px;
           justify-content: center;
         }
 
         .card {
           width: 1080px;
           height: 1620px;
+          overflow: hidden;
           display: flex;
-          align-items: center;
-          justify-content: center;
         }
 
         .card img {
           width: 1080px;
           height: 1620px;
-          object-fit: contain;
+          object-fit: cover;
         }
       </style>
     </head>
@@ -257,7 +255,7 @@ export class CardGenerator extends EventEmitter {
       path: jornalPath,
       printBackground: true,
       width: "3400px",
-      height: `${rows * 1640 + 80}px`,
+      height: `${rows * (1620 + 16) + 80}px`,
     });
 
     return jornalPath;
