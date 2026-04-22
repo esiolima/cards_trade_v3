@@ -9,51 +9,68 @@ const BASE_DIR = path.resolve();
 const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
+const LOGOS_DIR = path.join(BASE_DIR, "logos");
+const SELOS_DIR = path.join(BASE_DIR, "selos");
 
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
 
   async initialize() {
-    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+    if (!fs.existsSync(OUTPUT_DIR))
+      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-    if (!this.browser) {
-      this.browser = await puppeteer.launch({
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-        headless: true,
-      });
-    }
-  }
+    if (!fs.existsSync(TMP_DIR))
+      fs.mkdirSync(TMP_DIR, { recursive: true });
 
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
+    this.browser = await puppeteer.launch({
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: true,
+    });
   }
 
   normalizeType(tipo: string): string {
     if (!tipo) return "";
-    const t = tipo.toLowerCase();
-    if (t.includes("promo")) return "promocao";
-    if (t.includes("cupom")) return "cupom";
-    if (t.includes("queda")) return "queda";
+
+    const normalized = String(tipo)
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    if (normalized.includes("promo")) return "promocao";
+    if (normalized.includes("cupom")) return "cupom";
+    if (normalized.includes("queda")) return "queda";
+    if (normalized.includes("bc")) return "bc";
+
     return "";
   }
 
-  async processExcel(excelFilePath: string): Promise<any[]> {
-    await this.initialize();
+  imageToBase64(imagePath: string): string {
+    if (!imagePath || !fs.existsSync(imagePath)) return "";
+    const ext = path.extname(imagePath).replace(".", "");
+    const buffer = fs.readFileSync(imagePath);
+    return `data:image/${ext};base64,${buffer.toString("base64")}`;
+  }
+
+  async generateCards(excelFilePath: string): Promise<string> {
+    if (!this.browser) throw new Error("Browser not initialized");
+
+    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+      if (file.endsWith(".pdf") || file.endsWith(".zip")) {
+        fs.unlinkSync(path.join(OUTPUT_DIR, file));
+      }
+    });
 
     const workbook = xlsx.readFile(excelFilePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
-    const cards: any[] = [];
+    const total = rows.length;
+    let processed = 0;
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-
+    for (const row of rows) {
       const tipo = this.normalizeType(row.tipo);
       if (!tipo) continue;
 
@@ -62,117 +79,102 @@ export class CardGenerator extends EventEmitter {
 
       let html = fs.readFileSync(templatePath, "utf8");
 
+      let valorFinal = String(row.valor ?? "").trim();
+
+      if (["cupom", "queda", "bc"].includes(tipo)) {
+        valorFinal = valorFinal.replace(/[^0-9,]/g, "");
+      }
+
+      let logoFile =
+        row.logo && String(row.logo).trim() !== ""
+          ? String(row.logo).trim()
+          : "blank.png";
+
+      const logoBase64 = this.imageToBase64(
+        path.join(LOGOS_DIR, logoFile)
+      );
+
+      const seloBase64 = row.selo
+        ? this.imageToBase64(
+            path.join(
+              SELOS_DIR,
+              row.selo.toLowerCase() === "nova"
+                ? "acaonova.png"
+                : row.selo.toLowerCase() === "renovada"
+                ? "acaorenovada.png"
+                : ""
+            )
+          )
+        : "";
+
       html = html
         .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
-        .replaceAll("{{VALOR}}", String(row.valor ?? ""))
+        .replaceAll("{{VALOR}}", valorFinal)
+        .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
         .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""));
+        .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
+        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
+        .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
+        .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
+        .replaceAll("{{LOGO}}", logoBase64)
+        .replaceAll("{{SELO}}", seloBase64);
+
+      const tmpHtmlPath = path.join(TMP_DIR, `card_${processed + 1}.html`);
+      fs.writeFileSync(tmpHtmlPath, html);
 
       const page = await this.browser!.newPage();
+      await page.setViewport({ width: 700, height: 1058 });
 
-      try {
-        await page.setContent(html, { waitUntil: "networkidle0" });
+      await page.goto(`file://${tmpHtmlPath}`, {
+        waitUntil: "networkidle0",
+      });
 
-        const pdfPath = path.join(OUTPUT_DIR, `card_${i + 1}.pdf`);
+      const ordem = row.ordem ? String(row.ordem).trim() : processed + 1;
+      const pdfName = `${ordem}_${tipo}.pdf`;
+      const pdfPath = path.join(OUTPUT_DIR, pdfName);
 
-        await page.pdf({
-          path: pdfPath,
-          width: "700px",
-          height: "1058px",
-          printBackground: true,
-        });
+      await page.pdf({
+        path: pdfPath,
+        width: "700px",
+        height: "1058px",
+        printBackground: true,
+      });
 
-        cards.push(pdfPath);
-      } catch (e) {
-        console.error("Erro no card:", e);
-      } finally {
-        await page.close();
-      }
+      await page.close();
+
+      processed++;
+
+      this.emit("progress", {
+        processed,
+        total,
+        percentage: Math.round((processed / total) * 100),
+      });
     }
 
-    return cards;
-  }
-
-  async generateZip(): Promise<string> {
-    const zipPath = path.join(OUTPUT_DIR, `cards.zip`);
+    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
     const output = fs.createWriteStream(zipPath);
     const archive = archiver("zip", { zlib: { level: 9 } });
 
-    return new Promise((resolve, reject) => {
-      output.on("close", () => resolve(zipPath));
-      archive.on("error", (err) => reject(err));
-      archive.pipe(output);
+    archive.pipe(output);
 
-      const files = fs.readdirSync(OUTPUT_DIR);
-
-      files.forEach((file) => {
-        if (file.endsWith(".pdf") && !file.includes("jornal")) {
-          archive.file(path.join(OUTPUT_DIR, file), { name: file });
-        }
-      });
-
-      archive.finalize();
+    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+      if (file.endsWith(".pdf")) {
+        archive.file(path.join(OUTPUT_DIR, file), { name: file });
+      }
     });
+
+    await archive.finalize();
+
+    return zipPath;
   }
 
+  // 👉 NOVA FUNÇÃO (JORNAL SIMPLES)
   async generateJornal(): Promise<string> {
-    await this.initialize();
+    if (!this.browser) throw new Error("Browser not initialized");
 
-    const excelFilePath = path.join(process.cwd(), "uploads_excel", "current_planilha.xlsx");
-    const workbook = xlsx.readFile(excelFilePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
-
-    const cards: any[] = [];
-
-    for (const row of rows) {
-      const tipo = this.normalizeType(row.tipo);
-      const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
-      if (!fs.existsSync(templatePath)) continue;
-
-      let html = fs.readFileSync(templatePath, "utf8");
-
-      html = html
-        .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
-        .replaceAll("{{VALOR}}", String(row.valor ?? ""))
-        .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""));
-
-      cards.push({
-        categoria: String(row.segmento || "OUTROS"),
-        html
-      });
-    }
-
-    const pages: any[] = [];
-    let currentPage: any[] = [];
-    let currentCategoria = "";
-
-    for (const card of cards) {
-      const sameCategoria = card.categoria === currentCategoria;
-
-      if (!sameCategoria) {
-        const remainingSlots = 18 - currentPage.length;
-
-        if (currentPage.length > 0 && remainingSlots <= 6) {
-          pages.push(currentPage);
-          currentPage = [];
-        }
-
-        currentCategoria = card.categoria;
-      }
-
-      currentPage.push(card);
-
-      if (currentPage.length === 18) {
-        pages.push(currentPage);
-        currentPage = [];
-      }
-    }
-
-    if (currentPage.length > 0) {
-      pages.push(currentPage);
-    }
+    const files = fs
+      .readdirSync(OUTPUT_DIR)
+      .filter((f) => f.endsWith(".pdf") && !f.includes("jornal"));
 
     let html = `
     <html>
@@ -180,20 +182,7 @@ export class CardGenerator extends EventEmitter {
       <style>
         @page { size: A4; margin: 20px; }
 
-        body {
-          font-family: Arial;
-        }
-
-        .page {
-          page-break-after: always;
-        }
-
-        .header {
-          text-align: center;
-          font-size: 24px;
-          font-weight: bold;
-          margin-bottom: 20px;
-        }
+        .page { page-break-after: always; }
 
         .grid {
           display: flex;
@@ -203,25 +192,41 @@ export class CardGenerator extends EventEmitter {
 
         .card {
           width: 32%;
+          height: 350px;
+        }
+
+        iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
         }
       </style>
     </head>
     <body>
     `;
 
-    for (const pageCards of pages) {
-      html += `<div class="page">`;
-      html += `<div class="header">OFERTAS</div>`;
-      html += `<div class="grid">`;
+    let count = 0;
 
-      for (const card of pageCards) {
-        html += `<div class="card">${card.html}</div>`;
+    html += `<div class="page"><div class="grid">`;
+
+    for (const file of files) {
+      const filePath = path.join(OUTPUT_DIR, file);
+
+      html += `
+        <div class="card">
+          <iframe src="file://${filePath}"></iframe>
+        </div>
+      `;
+
+      count++;
+
+      if (count === 18) {
+        html += `</div></div><div class="page"><div class="grid">`;
+        count = 0;
       }
-
-      html += `</div></div>`;
     }
 
-    html += `</body></html>`;
+    html += `</div></div></body></html>`;
 
     const filePath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
@@ -235,5 +240,12 @@ export class CardGenerator extends EventEmitter {
     });
 
     return filePath;
+  }
+
+  async close() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+    }
   }
 }
