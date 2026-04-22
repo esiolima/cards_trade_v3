@@ -13,6 +13,8 @@ const IMG_DIR = path.join(BASE_DIR, "tmp_img");
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
 const SELOS_DIR = path.join(BASE_DIR, "selos");
+const CARD_WIDTH = 700;
+const CARD_HEIGHT = 1058;
 
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
@@ -58,6 +60,33 @@ export class CardGenerator extends EventEmitter {
     return `data:image/${ext};base64,${buffer.toString("base64")}`;
   }
 
+  resolveLogoPath(rawLogoValue: unknown): string {
+    const fallbackLogo = path.join(LOGOS_DIR, "blank.png");
+    const normalized = String(rawLogoValue ?? "").trim();
+    if (!normalized) return fallbackLogo;
+
+    const candidates = [
+      normalized,
+      `${normalized}.png`,
+      `${normalized}.jpg`,
+      `${normalized}.jpeg`,
+      normalized.toLowerCase(),
+      `${normalized.toLowerCase()}.png`,
+      `${normalized.toLowerCase()}.jpg`,
+      `${normalized.toLowerCase()}.jpeg`,
+    ];
+
+    const uniqueCandidates = candidates.filter((candidate, index) => candidates.indexOf(candidate) === index);
+    for (const candidate of uniqueCandidates) {
+      const fullPath = path.join(LOGOS_DIR, candidate);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+        return fullPath;
+      }
+    }
+
+    return fallbackLogo;
+  }
+
   async processExcel(excelFilePath: string): Promise<string> {
     await this.initialize();
     return await this.generateCards(excelFilePath);
@@ -94,9 +123,7 @@ export class CardGenerator extends EventEmitter {
         valorFinal = valorFinal.replace(/[^0-9,]/g, "");
       }
 
-      const logoBase64 = this.imageToBase64(
-        path.join(LOGOS_DIR, row.logo || "blank.png")
-      );
+      const logoBase64 = this.imageToBase64(this.resolveLogoPath(row.logo));
 
       const seloBase64 = row.selo
         ? this.imageToBase64(
@@ -129,8 +156,8 @@ export class CardGenerator extends EventEmitter {
       const page = await this.browser.newPage();
 
       await page.setViewport({
-        width: 1080,
-        height: 1620,
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
         deviceScaleFactor: 1,
       });
 
@@ -141,8 +168,8 @@ export class CardGenerator extends EventEmitter {
       const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
       await page.pdf({
         path: pdfPath,
-        width: "1080px",
-        height: "1620px",
+        width: `${CARD_WIDTH}px`,
+        height: `${CARD_HEIGHT}px`,
         printBackground: true,
       });
 
@@ -233,8 +260,8 @@ export class CardGenerator extends EventEmitter {
     const columns = Math.max(1, options?.columns ?? 3);
     const gap = Math.max(0, options?.gap ?? 24);
     const padding = Math.max(0, options?.padding ?? 24);
-    const cardWidth = 1080;
-    const cardHeight = 1620;
+    const cardWidth = CARD_WIDTH;
+    const cardHeight = CARD_HEIGHT;
 
     let html = `
     <html>
