@@ -325,7 +325,18 @@ export class CardGenerator extends EventEmitter {
       .container { padding: ${gap}px; width: ${gridWidth}px; margin: 0 auto; } 
       .category-section { margin-bottom: ${gap * 2}px; width: 100%; clear: both; text-align: center; } 
       .category-title { background: ${categoryBoxColor}; color: white; padding: 30px 60px; font-size: 54px; font-weight: 900; border-radius: 20px; margin-bottom: ${gap}px; display: inline-block; text-transform: uppercase; box-shadow: 0 15px 35px rgba(0,0,0,0.2); font-family: 'Inter', sans-serif; } 
-      .cards-grid { display: grid !important; grid-template-columns: repeat(3, ${cardWidth}px) !important; gap: ${gap}px !important; width: ${gridWidth}px !important; margin: 0 auto !important; } 
+      .cards-grid {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: ${gap}px !important;
+        width: ${gridWidth}px !important;
+        margin: 0 auto !important;
+      }
+
+        .card-wrapper {
+        width: calc(33.333% - 27px);
+        page-break-inside: avoid;
+      }
       .card-content-inner { width: 100%; height: 100%; } 
       .footer { width: ${gridWidth}px; padding: 100px ${gap * 2}px; text-align: center; color: ${contrastColor}; font-size: 38px; font-weight: 900; line-height: 1.6; font-family: 'Inter', sans-serif; clear: both; margin: 50px auto 0 auto; display: block; box-sizing: border-box; }
     </style></head><body>${headerHtml}<div class="container">`;
