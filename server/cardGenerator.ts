@@ -9,6 +9,7 @@ const BASE_DIR = path.resolve();
 const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
 const IMG_DIR = path.join(BASE_DIR, "tmp_img");
+const JORNAL_MANIFEST_PATH = path.join(TMP_DIR, "jornal_manifest.json");
 
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
@@ -18,6 +19,56 @@ const CARD_HEIGHT = 1058;
 
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
+  private uploadedSpreadsheetBaseName = "jornal_ofertas";
+
+  normalizeRowKey(key: unknown): string {
+    return String(key ?? "")
+      .replace(/^\uFEFF/, "")
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  getRowValue(row: Record<string, unknown>, ...aliases: string[]): string {
+    const normalizedAliases = aliases.map((alias) => this.normalizeRowKey(alias));
+    const matchedKey = Object.keys(row).find((key) =>
+      normalizedAliases.includes(this.normalizeRowKey(key))
+    );
+
+    if (!matchedKey) return "";
+    return String(row[matchedKey] ?? "").trim();
+  }
+
+  sanitizeFilePart(value: string, fallback = "sem_valor"): string {
+    const sanitized = String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_");
+
+    return sanitized || fallback;
+  }
+
+  pickBannerColor(previousColor?: string): string {
+    const palette = [
+      "#B91C1C",
+      "#047857",
+      "#1D4ED8",
+      "#7C3AED",
+      "#C2410C",
+      "#0F766E",
+      "#BE185D",
+      "#374151",
+    ];
+
+    if (palette.length === 1) return palette[0];
+
+    const candidates = palette.filter((color) => color !== previousColor);
+    const index = Math.floor(Math.random() * candidates.length);
+    return candidates[index] ?? palette[0];
+  }
 
   async initialize() {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -87,13 +138,18 @@ export class CardGenerator extends EventEmitter {
     return fallbackLogo;
   }
 
-  async processExcel(excelFilePath: string): Promise<string> {
+  async processExcel(excelFilePath: string, originalFileName?: string): Promise<string> {
     await this.initialize();
-    return await this.generateCards(excelFilePath);
+    return await this.generateCards(excelFilePath, originalFileName);
   }
 
   async generateCards(excelFilePath: string, _originalFileName?: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
+
+    if (_originalFileName) {
+      const parsed = path.parse(_originalFileName);
+      this.uploadedSpreadsheetBaseName = this.sanitizeFilePart(parsed.name, "jornal_ofertas");
+    }
 
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
       fs.readdirSync(dir).forEach((file) => {
@@ -108,9 +164,10 @@ export class CardGenerator extends EventEmitter {
 
     const total = rows.length;
     let processed = 0;
+    const manifestEntries: Array<{ imageFile: string; categoria: string }> = [];
 
     for (const row of rows) {
-      const tipo = this.normalizeType(row.tipo);
+      const tipo = this.normalizeType(this.getRowValue(row, "tipo"));
       if (!tipo) continue;
 
       const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
@@ -118,20 +175,21 @@ export class CardGenerator extends EventEmitter {
 
       let html = fs.readFileSync(templatePath, "utf8");
 
-      let valorFinal = String(row.valor ?? "").trim();
+      let valorFinal = this.getRowValue(row, "valor");
       if (["cupom", "queda", "bc"].includes(tipo)) {
         valorFinal = valorFinal.replace(/[^0-9,]/g, "");
       }
 
-      const logoBase64 = this.imageToBase64(this.resolveLogoPath(row.logo));
+      const logoBase64 = this.imageToBase64(this.resolveLogoPath(this.getRowValue(row, "logo")));
 
-      const seloBase64 = row.selo
+      const seloValue = this.getRowValue(row, "selo").toLowerCase();
+      const seloBase64 = seloValue
         ? this.imageToBase64(
             path.join(
               SELOS_DIR,
-              row.selo === "nova"
+              seloValue === "nova"
                 ? "acaonova.png"
-                : row.selo === "renovada"
+                : seloValue === "renovada"
                 ? "acaorenovada.png"
                 : ""
             )
@@ -139,14 +197,14 @@ export class CardGenerator extends EventEmitter {
         : "";
 
       html = html
-        .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
+        .replaceAll("{{TEXTO}}", this.getRowValue(row, "texto"))
         .replaceAll("{{VALOR}}", valorFinal)
-        .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
-        .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-        .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
-        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
-        .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
-        .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
+        .replaceAll("{{COMPLEMENTO}}", this.getRowValue(row, "complemento"))
+        .replaceAll("{{LEGAL}}", this.getRowValue(row, "legal"))
+        .replaceAll("{{SEGMENTO}}", this.getRowValue(row, "segmento", "segmento de clientes"))
+        .replaceAll("{{CUPOM}}", this.getRowValue(row, "cupom"))
+        .replaceAll("{{UF}}", this.getRowValue(row, "uf") ? `UF: ${this.getRowValue(row, "uf")}` : "")
+        .replaceAll("{{URN}}", this.getRowValue(row, "urn") ? `URN: ${this.getRowValue(row, "urn")}` : "")
         .replaceAll("{{LOGO}}", logoBase64)
         .replaceAll("{{SELO}}", seloBase64);
 
@@ -165,7 +223,19 @@ export class CardGenerator extends EventEmitter {
         waitUntil: "networkidle0",
       });
 
-      const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
+      const ordem = this.sanitizeFilePart(this.getRowValue(row, "ordem") || String(processed + 1), String(processed + 1));
+      const categoria = this.sanitizeFilePart(this.getRowValue(row, "categoria"), "sem_categoria");
+      const tipoForName = this.sanitizeFilePart(tipo, "tipo");
+
+      let pdfFileName = `${ordem}_${tipoForName}_${categoria}.pdf`;
+      let pdfPath = path.join(OUTPUT_DIR, pdfFileName);
+      let duplicateSuffix = 2;
+      while (fs.existsSync(pdfPath)) {
+        pdfFileName = `${ordem}_${tipoForName}_${categoria}_${duplicateSuffix}.pdf`;
+        pdfPath = path.join(OUTPUT_DIR, pdfFileName);
+        duplicateSuffix++;
+      }
+
       await page.pdf({
         path: pdfPath,
         width: `${CARD_WIDTH}px`,
@@ -177,6 +247,11 @@ export class CardGenerator extends EventEmitter {
       await page.screenshot({
         path: imgPath,
         type: "png",
+      });
+
+      manifestEntries.push({
+        imageFile: path.basename(imgPath),
+        categoria: this.getRowValue(row, "categoria") || "SEM CATEGORIA",
       });
 
       await page.close();
@@ -191,6 +266,7 @@ export class CardGenerator extends EventEmitter {
     }
 
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
+    fs.writeFileSync(JORNAL_MANIFEST_PATH, JSON.stringify(manifestEntries, null, 2), "utf8");
 
     await new Promise<void>((resolve, reject) => {
       const output = fs.createWriteStream(zipPath);
@@ -257,6 +333,10 @@ export class CardGenerator extends EventEmitter {
         return aNum - bNum;
       });
 
+    const manifestEntries: Array<{ imageFile: string; categoria: string }> = fs.existsSync(JORNAL_MANIFEST_PATH)
+      ? JSON.parse(fs.readFileSync(JORNAL_MANIFEST_PATH, "utf8"))
+      : files.map((file) => ({ imageFile: file, categoria: "SEM CATEGORIA" }));
+
     const columns = Math.max(1, options?.columns ?? 3);
     const gap = Math.max(0, options?.gap ?? 24);
     const padding = Math.max(0, options?.padding ?? 24);
@@ -287,10 +367,29 @@ export class CardGenerator extends EventEmitter {
         }
 
         .grid {
-          display: grid;
-          grid-template-columns: repeat(var(--columns), var(--card-width));
-          column-gap: var(--gap);
+          display: flex;
+          flex-direction: column;
           row-gap: var(--gap);
+        }
+
+        .row {
+          display: grid;
+          column-gap: var(--gap);
+          justify-content: center;
+        }
+
+        .categoria-tarja {
+          width: 100%;
+          height: 72px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          text-transform: uppercase;
         }
 
         .card {
@@ -311,12 +410,54 @@ export class CardGenerator extends EventEmitter {
       <div class="grid">
     `;
 
-    for (const file of files) {
-      const filePath = path.join(IMG_DIR, file);
-      const buffer = fs.readFileSync(filePath);
-      const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
+    const blocks: Array<
+      | { type: "banner"; categoria: string; color: string }
+      | { type: "row"; cards: Array<{ imageFile: string; categoria: string }> }
+    > = [];
 
-      html += `<div class="card"><img src="${base64}" /></div>`;
+    let currentRow: Array<{ imageFile: string; categoria: string }> = [];
+    let previousCategoriaKey = "";
+    let previousBannerColor: string | undefined;
+
+    for (const entry of manifestEntries) {
+      const categoriaLabel = (entry.categoria || "SEM CATEGORIA").trim();
+      const categoriaKey = this.normalizeRowKey(categoriaLabel);
+
+      if (categoriaKey && categoriaKey !== previousCategoriaKey) {
+        if (currentRow.length > 0) {
+          blocks.push({ type: "row", cards: currentRow });
+          currentRow = [];
+        }
+
+        const color = this.pickBannerColor(previousBannerColor);
+        previousBannerColor = color;
+        blocks.push({ type: "banner", categoria: categoriaLabel, color });
+        previousCategoriaKey = categoriaKey;
+      }
+
+      currentRow.push(entry);
+      if (currentRow.length === columns) {
+        blocks.push({ type: "row", cards: currentRow });
+        currentRow = [];
+      }
+    }
+    if (currentRow.length > 0) blocks.push({ type: "row", cards: currentRow });
+
+    for (const block of blocks) {
+      if (block.type === "banner") {
+        html += `<div class="categoria-tarja" style="background:${block.color};">${block.categoria}</div>`;
+        continue;
+      }
+
+      html += `<div class="row" style="grid-template-columns: repeat(${block.cards.length}, var(--card-width));">`;
+      for (const card of block.cards) {
+        const filePath = path.join(IMG_DIR, card.imageFile);
+        if (!fs.existsSync(filePath)) continue;
+        const buffer = fs.readFileSync(filePath);
+        const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
+        html += `<div class="card"><img src="${base64}" /></div>`;
+      }
+      html += `</div>`;
     }
 
     html += `
@@ -325,11 +466,19 @@ export class CardGenerator extends EventEmitter {
     </html>
     `;
 
-    const jornalPath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
+    const jornalFileName = `${this.uploadedSpreadsheetBaseName}.pdf`;
+    const jornalPath = path.join(OUTPUT_DIR, jornalFileName);
 
-    const rows = Math.ceil(files.length / columns);
+    const bannerCount = blocks.filter((block) => block.type === "banner").length;
+    const rowCount = blocks.filter((block) => block.type === "row").length;
+    const bannerHeight = 72;
+    const contentHeight =
+      rowCount * cardHeight +
+      bannerCount * bannerHeight +
+      Math.max(0, blocks.length - 1) * gap;
+
     const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
-    const pdfHeight = padding * 2 + rows * cardHeight + Math.max(0, rows - 1) * gap;
+    const pdfHeight = padding * 2 + contentHeight;
 
     const page = await this.browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });

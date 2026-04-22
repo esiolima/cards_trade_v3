@@ -129,9 +129,11 @@ body {
 .valor-texto {
   font-weight: 900;
   font-size: 260px;
-  line-height: 0.9;
+  line-height: 0.95;
   text-align: center;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
   width: 100%;
 }
 
@@ -230,29 +232,39 @@ body {
 <script>
 window.addEventListener("load", function () {
 
-  function autoFit(el, max = 60, min = 16) {
-    let size = max;
-    el.style.fontSize = size + "px";
-    el.style.lineHeight = "0.9";
+  function autoFitValue(el) {
+    if (!el || !el.parentElement) return;
+
+    const rawText = (el.innerText || "").trim();
+    if (!rawText) return;
 
     const containerHeight = el.parentElement.clientHeight;
     const containerWidth = el.parentElement.clientWidth;
 
-    // Se o elemento não tiver conteúdo, não faz nada
-    if (!el.innerText.trim()) return;
+    const textLength = rawText.length;
+    let fontSize = 260;
+
+    if (textLength > 16) fontSize = 190;
+    if (textLength > 24) fontSize = 145;
+    if (textLength > 34) fontSize = 115;
+
+    const minFontSize = 34;
+
+    el.style.fontSize = fontSize + "px";
+    el.style.lineHeight = fontSize <= 90 ? "1.02" : "0.95";
 
     while (
       (el.scrollHeight > containerHeight || el.scrollWidth > containerWidth) &&
-      size > min
+      fontSize > minFontSize
     ) {
-      size -= 2;
-      el.style.fontSize = size + "px";
+      fontSize -= 2;
+      el.style.fontSize = fontSize + "px";
+      el.style.lineHeight = fontSize <= 90 ? "1.02" : "0.95";
     }
   }
 
-  // Ajuste dinâmico para o valor em até 3 linhas
   const valorEl = document.getElementById("valor-texto");
-  autoFit(valorEl, 260, 80);
+  autoFitValue(valorEl);
 
   /* SEGMENTO */
   const segmento = document.getElementById("segmento-bloco");

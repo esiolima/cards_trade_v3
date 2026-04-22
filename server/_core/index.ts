@@ -38,7 +38,7 @@ async function startServer() {
       const permanentPath = path.join(uploadsDir, "current_planilha.xlsx");
       fs.copyFileSync(req.file.path, permanentPath);
 
-      const cards = await generator.processExcel(req.file.path);
+      const cards = await generator.processExcel(req.file.path, req.file.originalname);
       fs.unlinkSync(req.file.path);
       
       res.json({ cards });
@@ -80,7 +80,7 @@ async function startServer() {
         footerText: footerText || ""
       });
 
-      res.download(pdfPath, "jornal_ofertas.pdf", (err) => {
+      res.download(pdfPath, path.basename(pdfPath), (err) => {
         if (err) console.error("Erro ao enviar PDF:", err);
         if (headerPath && fs.existsSync(headerPath)) fs.unlinkSync(headerPath);
       });
