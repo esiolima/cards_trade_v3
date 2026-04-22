@@ -521,6 +521,47 @@ export class CardGenerator extends EventEmitter {
           word-break: break-word;
         }
 
+        .categoria-tarja {
+          width: 100%;
+          height: 72px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .jornal-header {
+          width: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .jornal-header img,
+        .jornal-header embed {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+          border: none;
+          display: block;
+          background: #ffffff;
+        }
+
+        .jornal-footer {
+          width: 100%;
+          padding: 0 24px;
+          font-family: 'Inter', sans-serif;
+          font-size: 24px;
+          line-height: 1.35;
+          color: #1F2937;
+          text-align: center;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
         .card {
           width: var(--card-width);
           height: var(--card-height);
@@ -610,8 +651,14 @@ export class CardGenerator extends EventEmitter {
     const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
     const pdfHeight = padding * 2 + contentHeight;
 
-    const page = await this.browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+      await page.pdf({
+        path: jornalPath,
+        printBackground: true,
+        omitBackground: true,
+        width: `${pdfWidth}px`,
+        height: `${pdfHeight}px`,
+        preferCSSPageSize: true,
+      });
 
     await page.pdf({
       path: jornalPath,
@@ -622,7 +669,18 @@ export class CardGenerator extends EventEmitter {
       preferCSSPageSize: true,
     });
 
-    return jornalPath;
+      const fallbackPage = await this.browser.newPage();
+      await fallbackPage.setContent(fallbackHtml, { waitUntil: "networkidle0" });
+      await fallbackPage.pdf({
+        path: jornalPath,
+        printBackground: true,
+        omitBackground: true,
+        width: `${pdfWidth}px`,
+        height: `${pdfHeight}px`,
+        preferCSSPageSize: true,
+      });
+      return jornalPath;
+    }
   }
 
   async close() {
