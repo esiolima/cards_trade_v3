@@ -8,7 +8,8 @@ import { EventEmitter } from "events";
 const BASE_DIR = path.resolve();
 const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
-const HTML_DIR = path.join(BASE_DIR, "tmp_html"); // 🔥 NOVO
+const IMG_DIR = path.join(BASE_DIR, "tmp_img");
+
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
 const SELOS_DIR = path.join(BASE_DIR, "selos");
@@ -19,7 +20,7 @@ export class CardGenerator extends EventEmitter {
   async initialize() {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
-    if (!fs.existsSync(HTML_DIR)) fs.mkdirSync(HTML_DIR, { recursive: true });
+    if (!fs.existsSync(IMG_DIR)) fs.mkdirSync(IMG_DIR, { recursive: true });
 
     if (!this.browser) {
       this.browser = await puppeteer.launch({
@@ -65,17 +66,14 @@ export class CardGenerator extends EventEmitter {
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    // limpar
-    fs.readdirSync(OUTPUT_DIR).forEach((f) => {
-      const full = path.join(OUTPUT_DIR, f);
-      if (fs.statSync(full).isFile()) {
-        if (f.endsWith(".pdf") || f.endsWith(".zip")) fs.unlinkSync(full);
-      }
-    });
-
-    fs.readdirSync(HTML_DIR).forEach((f) => {
-      const full = path.join(HTML_DIR, f);
-      if (fs.statSync(full).isFile()) fs.unlinkSync(full);
+    // limpar pastas
+    [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
+      fs.readdirSync(dir).forEach((file) => {
+        const full = path.join(dir, file);
+        if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+          fs.unlinkSync(full);
+        }
+      });
     });
 
     const workbook = xlsx.readFile(excelFilePath);
@@ -128,23 +126,27 @@ export class CardGenerator extends EventEmitter {
         .replaceAll("{{LOGO}}", logoBase64)
         .replaceAll("{{SELO}}", seloBase64);
 
-      // 🔥 salva HTML real
-      const htmlPath = path.join(HTML_DIR, `card_${processed}.html`);
-      fs.writeFileSync(htmlPath, html);
-
-      const tmpHtml = path.join(TMP_DIR, `tmp_${processed}.html`);
+      const tmpHtml = path.join(TMP_DIR, `card_${processed}.html`);
       fs.writeFileSync(tmpHtml, html);
 
       const page = await this.browser.newPage();
+      await page.setViewport({ width: 700, height: 1058 });
       await page.goto(`file://${tmpHtml}`, { waitUntil: "networkidle0" });
 
+      // PDF
       const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
-
       await page.pdf({
         path: pdfPath,
         width: "700px",
         height: "1058px",
         printBackground: true,
+      });
+
+      // PNG
+      const imgPath = path.join(IMG_DIR, `card_${processed}.png`);
+      await page.screenshot({
+        path: imgPath,
+        type: "png",
       });
 
       await page.close();
@@ -158,7 +160,7 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
-    // ZIP CORRETO
+    // ZIP correto
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
 
     await new Promise<void>((resolve, reject) => {
@@ -187,8 +189,8 @@ export class CardGenerator extends EventEmitter {
     if (!this.browser) throw new Error("Browser not initialized");
 
     const files = fs
-      .readdirSync(HTML_DIR)
-      .filter((f) => f.endsWith(".html"));
+      .readdirSync(IMG_DIR)
+      .filter((f) => f.endsWith(".png"));
 
     let html = `
     <html>
@@ -206,8 +208,10 @@ export class CardGenerator extends EventEmitter {
 
         .card {
           width: 32%;
-          transform: scale(0.5);
-          transform-origin: top left;
+        }
+
+        img {
+          width: 100%;
         }
       </style>
     </head>
@@ -218,10 +222,9 @@ export class CardGenerator extends EventEmitter {
     html += `<div class="page"><div class="grid">`;
 
     for (const file of files) {
-      const filePath = path.join(HTML_DIR, file);
-      const cardHtml = fs.readFileSync(filePath, "utf8");
+      const filePath = path.join(IMG_DIR, file);
 
-      html += `<div class="card">${cardHtml}</div>`;
+      html += `<div class="card"><img src="file://${filePath}" /></div>`;
 
       count++;
 
