@@ -42,6 +42,79 @@ export class CardGenerator extends EventEmitter {
     return "";
   }
 
+  async processExcel(excelFilePath: string): Promise<any[]> {
+    await this.initialize();
+
+    const workbook = xlsx.readFile(excelFilePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+
+    const cards: any[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      const tipo = this.normalizeType(row.tipo);
+      if (!tipo) continue;
+
+      const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
+      if (!fs.existsSync(templatePath)) continue;
+
+      let html = fs.readFileSync(templatePath, "utf8");
+
+      html = html
+        .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
+        .replaceAll("{{VALOR}}", String(row.valor ?? ""))
+        .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
+        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""));
+
+      const page = await this.browser!.newPage();
+
+      try {
+        await page.setContent(html, { waitUntil: "networkidle0" });
+
+        const pdfPath = path.join(OUTPUT_DIR, `card_${i + 1}.pdf`);
+
+        await page.pdf({
+          path: pdfPath,
+          width: "700px",
+          height: "1058px",
+          printBackground: true,
+        });
+
+        cards.push(pdfPath);
+      } catch (e) {
+        console.error("Erro no card:", e);
+      } finally {
+        await page.close();
+      }
+    }
+
+    return cards;
+  }
+
+  async generateZip(): Promise<string> {
+    const zipPath = path.join(OUTPUT_DIR, `cards.zip`);
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
+    return new Promise((resolve, reject) => {
+      output.on("close", () => resolve(zipPath));
+      archive.on("error", (err) => reject(err));
+      archive.pipe(output);
+
+      const files = fs.readdirSync(OUTPUT_DIR);
+
+      files.forEach((file) => {
+        if (file.endsWith(".pdf") && !file.includes("jornal")) {
+          archive.file(path.join(OUTPUT_DIR, file), { name: file });
+        }
+      });
+
+      archive.finalize();
+    });
+  }
+
   async generateJornal(): Promise<string> {
     await this.initialize();
 
