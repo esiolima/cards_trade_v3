@@ -8,6 +8,7 @@ import { EventEmitter } from "events";
 const BASE_DIR = path.resolve();
 const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
+const HTML_DIR = path.join(BASE_DIR, "tmp_html"); // 🔥 NOVO
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
 const SELOS_DIR = path.join(BASE_DIR, "selos");
@@ -16,13 +17,9 @@ export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
 
   async initialize() {
-    if (!fs.existsSync(OUTPUT_DIR)) {
-      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    }
-
-    if (!fs.existsSync(TMP_DIR)) {
-      fs.mkdirSync(TMP_DIR, { recursive: true });
-    }
+    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+    if (!fs.existsSync(HTML_DIR)) fs.mkdirSync(HTML_DIR, { recursive: true });
 
     if (!this.browser) {
       this.browser = await puppeteer.launch({
@@ -52,17 +49,13 @@ export class CardGenerator extends EventEmitter {
   }
 
   imageToBase64(imagePath: string): string {
-    try {
-      if (!imagePath || !fs.existsSync(imagePath)) return "";
-      const stat = fs.statSync(imagePath);
-      if (!stat.isFile()) return "";
+    if (!imagePath || !fs.existsSync(imagePath)) return "";
+    const stat = fs.statSync(imagePath);
+    if (!stat.isFile()) return "";
 
-      const ext = path.extname(imagePath).replace(".", "");
-      const buffer = fs.readFileSync(imagePath);
-      return `data:image/${ext};base64,${buffer.toString("base64")}`;
-    } catch {
-      return "";
-    }
+    const ext = path.extname(imagePath).replace(".", "");
+    const buffer = fs.readFileSync(imagePath);
+    return `data:image/${ext};base64,${buffer.toString("base64")}`;
   }
 
   async processExcel(excelFilePath: string): Promise<string> {
@@ -72,16 +65,17 @@ export class CardGenerator extends EventEmitter {
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    // 🔥 limpa saída com segurança
-    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      const full = path.join(OUTPUT_DIR, file);
+    // limpar
+    fs.readdirSync(OUTPUT_DIR).forEach((f) => {
+      const full = path.join(OUTPUT_DIR, f);
+      if (fs.statSync(full).isFile()) {
+        if (f.endsWith(".pdf") || f.endsWith(".zip")) fs.unlinkSync(full);
+      }
+    });
 
-      try {
-        const stat = fs.statSync(full);
-        if (stat.isFile() && (file.endsWith(".pdf") || file.endsWith(".zip"))) {
-          fs.unlinkSync(full);
-        }
-      } catch {}
+    fs.readdirSync(HTML_DIR).forEach((f) => {
+      const full = path.join(HTML_DIR, f);
+      if (fs.statSync(full).isFile()) fs.unlinkSync(full);
     });
 
     const workbook = xlsx.readFile(excelFilePath);
@@ -134,7 +128,11 @@ export class CardGenerator extends EventEmitter {
         .replaceAll("{{LOGO}}", logoBase64)
         .replaceAll("{{SELO}}", seloBase64);
 
-      const tmpHtml = path.join(TMP_DIR, `card_${processed}.html`);
+      // 🔥 salva HTML real
+      const htmlPath = path.join(HTML_DIR, `card_${processed}.html`);
+      fs.writeFileSync(htmlPath, html);
+
+      const tmpHtml = path.join(TMP_DIR, `tmp_${processed}.html`);
       fs.writeFileSync(tmpHtml, html);
 
       const page = await this.browser.newPage();
@@ -160,24 +158,27 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
+    // ZIP CORRETO
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip");
 
-    archive.pipe(output);
+    await new Promise<void>((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip");
 
-    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      const full = path.join(OUTPUT_DIR, file);
+      output.on("close", () => resolve());
+      archive.on("error", reject);
 
-      try {
-        const stat = fs.statSync(full);
-        if (stat.isFile() && file.endsWith(".pdf")) {
+      archive.pipe(output);
+
+      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+        const full = path.join(OUTPUT_DIR, file);
+        if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
           archive.file(full, { name: file });
         }
-      } catch {}
-    });
+      });
 
-    await archive.finalize();
+      archive.finalize();
+    });
 
     return zipPath;
   }
@@ -186,44 +187,51 @@ export class CardGenerator extends EventEmitter {
     if (!this.browser) throw new Error("Browser not initialized");
 
     const files = fs
-      .readdirSync(OUTPUT_DIR)
-      .filter((file) => {
-        try {
-          const full = path.join(OUTPUT_DIR, file);
-          const stat = fs.statSync(full);
-          return (
-            stat.isFile() &&
-            file.endsWith(".pdf") &&
-            !file.includes("jornal")
-          );
-        } catch {
-          return false;
-        }
-      });
+      .readdirSync(HTML_DIR)
+      .filter((f) => f.endsWith(".html"));
 
-    let html = `<html><body style="margin:0;">`;
-    html += `<div style="display:flex;flex-wrap:wrap;">`;
+    let html = `
+    <html>
+    <head>
+      <style>
+        @page { size: A4; margin: 20px; }
+
+        .page { page-break-after: always; }
+
+        .grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .card {
+          width: 32%;
+          transform: scale(0.5);
+          transform-origin: top left;
+        }
+      </style>
+    </head>
+    <body>
+    `;
 
     let count = 0;
+    html += `<div class="page"><div class="grid">`;
 
     for (const file of files) {
-      const filePath = path.join(OUTPUT_DIR, file);
+      const filePath = path.join(HTML_DIR, file);
+      const cardHtml = fs.readFileSync(filePath, "utf8");
 
-      html += `
-        <div style="width:33%;height:350px;">
-          <iframe src="file://${filePath}" style="width:100%;height:100%;border:none;"></iframe>
-        </div>
-      `;
+      html += `<div class="card">${cardHtml}</div>`;
 
       count++;
 
       if (count === 18) {
-        html += `</div><div style="page-break-after:always;"></div><div style="display:flex;flex-wrap:wrap;">`;
+        html += `</div></div><div class="page"><div class="grid">`;
         count = 0;
       }
     }
 
-    html += `</div></body></html>`;
+    html += `</div></div></body></html>`;
 
     const jornalPath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
