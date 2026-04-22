@@ -13,6 +13,8 @@ const IMG_DIR = path.join(BASE_DIR, "tmp_img");
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
 const SELOS_DIR = path.join(BASE_DIR, "selos");
+const CARD_WIDTH = 700;
+const CARD_HEIGHT = 1058;
 
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
@@ -58,12 +60,39 @@ export class CardGenerator extends EventEmitter {
     return `data:image/${ext};base64,${buffer.toString("base64")}`;
   }
 
+  resolveLogoPath(rawLogoValue: unknown): string {
+    const fallbackLogo = path.join(LOGOS_DIR, "blank.png");
+    const normalized = String(rawLogoValue ?? "").trim();
+    if (!normalized) return fallbackLogo;
+
+    const candidates = [
+      normalized,
+      `${normalized}.png`,
+      `${normalized}.jpg`,
+      `${normalized}.jpeg`,
+      normalized.toLowerCase(),
+      `${normalized.toLowerCase()}.png`,
+      `${normalized.toLowerCase()}.jpg`,
+      `${normalized.toLowerCase()}.jpeg`,
+    ];
+
+    const uniqueCandidates = candidates.filter((candidate, index) => candidates.indexOf(candidate) === index);
+    for (const candidate of uniqueCandidates) {
+      const fullPath = path.join(LOGOS_DIR, candidate);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+        return fullPath;
+      }
+    }
+
+    return fallbackLogo;
+  }
+
   async processExcel(excelFilePath: string): Promise<string> {
     await this.initialize();
     return await this.generateCards(excelFilePath);
   }
 
-  async generateCards(excelFilePath: string): Promise<string> {
+  async generateCards(excelFilePath: string, _originalFileName?: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
@@ -94,9 +123,7 @@ export class CardGenerator extends EventEmitter {
         valorFinal = valorFinal.replace(/[^0-9,]/g, "");
       }
 
-      const logoBase64 = this.imageToBase64(
-        path.join(LOGOS_DIR, row.logo || "blank.png")
-      );
+      const logoBase64 = this.imageToBase64(this.resolveLogoPath(row.logo));
 
       const seloBase64 = row.selo
         ? this.imageToBase64(
@@ -129,8 +156,8 @@ export class CardGenerator extends EventEmitter {
       const page = await this.browser.newPage();
 
       await page.setViewport({
-        width: 1080,
-        height: 1620,
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
         deviceScaleFactor: 1,
       });
 
@@ -141,8 +168,8 @@ export class CardGenerator extends EventEmitter {
       const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
       await page.pdf({
         path: pdfPath,
-        width: "1080px",
-        height: "1620px",
+        width: `${CARD_WIDTH}px`,
+        height: `${CARD_HEIGHT}px`,
         printBackground: true,
       });
 
@@ -187,41 +214,95 @@ export class CardGenerator extends EventEmitter {
     return zipPath;
   }
 
-  async generateJornal(): Promise<string> {
+  async generateZip(): Promise<string> {
+    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
+    if (!fs.existsSync(zipPath)) {
+      throw new Error("Arquivo ZIP ainda não foi gerado");
+    }
+    return zipPath;
+  }
+
+  async generateJornal(_filePathOrOptions?: string | {
+    columns?: number;
+    gap?: number;
+    padding?: number;
+    headerPath?: string;
+    backgroundColor?: string;
+    categoryBoxColor?: string;
+    footerText?: string;
+  }, _legacyOptions?: {
+    columns?: number;
+    gap?: number;
+    padding?: number;
+    headerPath?: string;
+    backgroundColor?: string;
+    categoryBoxColor?: string;
+    footerText?: string;
+  }): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
+
+    const options =
+      typeof _filePathOrOptions === "string"
+        ? _legacyOptions
+        : _filePathOrOptions;
 
     const files = fs
       .readdirSync(IMG_DIR)
-      .filter((f) => f.endsWith(".png"));
+      .filter((f) => f.endsWith(".png"))
+      .sort((a, b) => {
+        const aMatch = a.match(/\d+/);
+        const bMatch = b.match(/\d+/);
+        const aNum = aMatch ? Number(aMatch[0]) : 0;
+        const bNum = bMatch ? Number(bMatch[0]) : 0;
+        return aNum - bNum;
+      });
+
+    const columns = Math.max(1, options?.columns ?? 3);
+    const gap = Math.max(0, options?.gap ?? 24);
+    const padding = Math.max(0, options?.padding ?? 24);
+    const cardWidth = CARD_WIDTH;
+    const cardHeight = CARD_HEIGHT;
 
     let html = `
     <html>
     <head>
       <style>
+        :root {
+          --columns: ${columns};
+          --card-width: ${cardWidth}px;
+          --card-height: ${cardHeight}px;
+          --gap: ${gap}px;
+          --padding: ${padding}px;
+        }
+
+        @page {
+          size: ${padding * 2 + columns * cardWidth + (columns - 1) * gap}px auto;
+          margin: 0;
+        }
+
         body {
           margin: 0;
-          padding: 40px;
-          background: white;
+          padding: var(--padding);
+          background: transparent;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(3, 1080px);
-          column-gap: 16px;
-          row-gap: 16px;
-          justify-content: center;
+          grid-template-columns: repeat(var(--columns), var(--card-width));
+          column-gap: var(--gap);
+          row-gap: var(--gap);
         }
 
         .card {
-          width: 1080px;
-          height: 1620px;
+          width: var(--card-width);
+          height: var(--card-height);
           overflow: hidden;
           display: flex;
         }
 
         .card img {
-          width: 1080px;
-          height: 1620px;
+          width: var(--card-width);
+          height: var(--card-height);
           object-fit: cover;
         }
       </style>
@@ -246,7 +327,9 @@ export class CardGenerator extends EventEmitter {
 
     const jornalPath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
-    const rows = Math.ceil(files.length / 3);
+    const rows = Math.ceil(files.length / columns);
+    const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
+    const pdfHeight = padding * 2 + rows * cardHeight + Math.max(0, rows - 1) * gap;
 
     const page = await this.browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
@@ -254,8 +337,10 @@ export class CardGenerator extends EventEmitter {
     await page.pdf({
       path: jornalPath,
       printBackground: true,
-      width: "3400px",
-      height: `${rows * (1620 + 16) + 80}px`,
+      omitBackground: true,
+      width: `${pdfWidth}px`,
+      height: `${pdfHeight}px`,
+      preferCSSPageSize: true,
     });
 
     return jornalPath;
