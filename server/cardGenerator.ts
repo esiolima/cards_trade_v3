@@ -16,18 +16,22 @@ export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
 
   async initialize() {
-    if (!fs.existsSync(OUTPUT_DIR))
+    if (!fs.existsSync(OUTPUT_DIR)) {
       fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    }
 
-    if (!fs.existsSync(TMP_DIR))
+    if (!fs.existsSync(TMP_DIR)) {
       fs.mkdirSync(TMP_DIR, { recursive: true });
+    }
 
-    this.browser = await puppeteer.launch({
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      headless: true,
-    });
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        executablePath:
+          process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        headless: true,
+      });
+    }
   }
 
   normalizeType(tipo: string): string {
@@ -54,18 +58,21 @@ export class CardGenerator extends EventEmitter {
     return `data:image/${ext};base64,${buffer.toString("base64")}`;
   }
 
-  // 🔥 FUNÇÃO QUE O SISTEMA ESPERA
-  async processExcel(excelFilePath: string): Promise<any> {
-    const zipPath = await this.generateCards(excelFilePath);
-    return zipPath;
+  // 🔹 compatível com router
+  async processExcel(excelFilePath: string): Promise<string> {
+    return await this.generateCards(excelFilePath);
   }
 
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
+    // limpa saída
     fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      if (file.endsWith(".pdf") || file.endsWith(".zip")) {
-        fs.unlinkSync(path.join(OUTPUT_DIR, file));
+      const full = path.join(OUTPUT_DIR, file);
+      if (fs.statSync(full).isFile()) {
+        if (file.endsWith(".pdf") || file.endsWith(".zip")) {
+          fs.unlinkSync(full);
+        }
       }
     });
 
@@ -122,7 +129,7 @@ export class CardGenerator extends EventEmitter {
       const tmpHtml = path.join(TMP_DIR, `card_${processed}.html`);
       fs.writeFileSync(tmpHtml, html);
 
-      const page = await this.browser!.newPage();
+      const page = await this.browser.newPage();
       await page.goto(`file://${tmpHtml}`, { waitUntil: "networkidle0" });
 
       const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
@@ -152,8 +159,9 @@ export class CardGenerator extends EventEmitter {
     archive.pipe(output);
 
     fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      if (file.endsWith(".pdf")) {
-        archive.file(path.join(OUTPUT_DIR, file), { name: file });
+      const full = path.join(OUTPUT_DIR, file);
+      if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
+        archive.file(full, { name: file });
       }
     });
 
@@ -162,18 +170,25 @@ export class CardGenerator extends EventEmitter {
     return zipPath;
   }
 
-  // 🟢 JORNAL SIMPLES
+  // 🔹 JORNAL SIMPLES ESTÁVEL
   async generateJornal(): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
     const files = fs
       .readdirSync(OUTPUT_DIR)
-      .filter((f) => f.endsWith(".pdf") && !f.includes("jornal"));
+      .filter((f) => {
+        const full = path.join(OUTPUT_DIR, f);
+        return (
+          fs.statSync(full).isFile() &&
+          f.endsWith(".pdf") &&
+          !f.includes("jornal")
+        );
+      });
 
     let html = `<html><body style="margin:0;">`;
+    html += `<div style="display:flex;flex-wrap:wrap;">`;
 
     let count = 0;
-    html += `<div style="display:flex;flex-wrap:wrap;">`;
 
     for (const file of files) {
       const filePath = path.join(OUTPUT_DIR, file);
@@ -194,18 +209,18 @@ export class CardGenerator extends EventEmitter {
 
     html += `</div></body></html>`;
 
-    const filePath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
+    const jornalPath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
-    const page = await this.browser!.newPage();
+    const page = await this.browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
 
     await page.pdf({
-      path: filePath,
+      path: jornalPath,
       format: "A4",
       printBackground: true,
     });
 
-    return filePath;
+    return jornalPath;
   }
 
   async close() {
