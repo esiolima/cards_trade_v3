@@ -94,8 +94,9 @@ async function startServer() {
         if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       });
     } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("Erro na geração do jornal:", error);
-      res.status(500).json({ error: error.message || "Erro interno no servidor" });
+      res.status(500).json({ error: errorMessage || "Erro interno no servidor" });
     }
   });
 

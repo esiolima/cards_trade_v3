@@ -153,20 +153,30 @@ const CardGenerator: React.FC = () => {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Erro ao gerar jornal");
+      if (!response.ok) {
+        let errorMessage = "Erro ao gerar jornal";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {}
+        throw new Error(errorMessage);
+      }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
+      const contentDisposition = response.headers.get("content-disposition") || "";
+      const fileNameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+      const downloadedFileName = fileNameMatch?.[1] || "jornal_ofertas.pdf";
       const a = document.createElement("a");
       a.href = url;
-      a.download = "jornal_ofertas.pdf";
+      a.download = downloadedFileName;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       toast.success("Jornal PDF gerado com sucesso!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao gerar jornal:", error);
-      toast.error("Erro ao gerar o jornal consolidado.");
+      toast.error(error?.message || "Erro ao gerar o jornal consolidado.");
     } finally {
       setIsGeneratingJornal(false);
     }
