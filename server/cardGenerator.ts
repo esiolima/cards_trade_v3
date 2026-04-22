@@ -129,7 +129,6 @@ export class CardGenerator extends EventEmitter {
 
       const page = await this.browser.newPage();
 
-      // 🔥 CARD EM 1080px REAL
       await page.setViewport({
         width: 1080,
         height: 1620,
@@ -140,7 +139,6 @@ export class CardGenerator extends EventEmitter {
         waitUntil: "networkidle0",
       });
 
-      // PDF individual
       const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
       await page.pdf({
         path: pdfPath,
@@ -149,7 +147,6 @@ export class CardGenerator extends EventEmitter {
         printBackground: true,
       });
 
-      // PNG alta qualidade
       const imgPath = path.join(IMG_DIR, `card_${processed}.png`);
       await page.screenshot({
         path: imgPath,
@@ -167,7 +164,6 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
-    // ZIP
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
 
     await new Promise<void>((resolve, reject) => {
@@ -212,13 +208,23 @@ export class CardGenerator extends EventEmitter {
         .grid {
           display: grid;
           grid-template-columns: repeat(3, 1080px);
-          gap: 40px;
+          column-gap: 20px;
+          row-gap: 20px;
           justify-content: center;
         }
 
-        img {
+        .card {
           width: 1080px;
-          height: auto;
+          height: 1620px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .card img {
+          width: 1080px;
+          height: 1620px;
+          object-fit: contain;
         }
       </style>
     </head>
@@ -231,7 +237,7 @@ export class CardGenerator extends EventEmitter {
       const buffer = fs.readFileSync(filePath);
       const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
 
-      html += `<img src="${base64}" />`;
+      html += `<div class="card"><img src="${base64}" /></div>`;
     }
 
     html += `
@@ -242,15 +248,16 @@ export class CardGenerator extends EventEmitter {
 
     const jornalPath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
+    const rows = Math.ceil(files.length / 3);
+
     const page = await this.browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
 
-    // 🔥 PDF CONTÍNUO LARGO
     await page.pdf({
       path: jornalPath,
       printBackground: true,
       width: "3400px",
-      height: `${files.length * 600}px`,
+      height: `${rows * 1640 + 80}px`,
     });
 
     return jornalPath;
