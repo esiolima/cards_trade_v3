@@ -11,8 +11,7 @@ import {
   Type, 
   Image as ImageIcon,
   AlertCircle,
-  Sun,
-  Info
+  Sun
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -173,6 +172,13 @@ const CardGenerator: React.FC = () => {
     }
   };
 
+  const hasHeaderConfigured = Boolean(headerFile || lastHeaderName);
+  const isJornalConfigComplete =
+    hasHeaderConfigured &&
+    Boolean(backgroundColor) &&
+    Boolean(categoryBoxColor) &&
+    footerText.trim().length > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a192f] via-[#112240] to-[#0a192f] text-white p-4 md:p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -290,7 +296,7 @@ const CardGenerator: React.FC = () => {
                     </Label>
                     <div className="flex gap-2">
                       <label className="flex-1 cursor-pointer bg-white/5 border border-white/10 rounded-xl p-3 text-xs hover:bg-white/10 transition-all truncate text-center font-medium">
-                        <input type="file" className="hidden" accept="image/*" onChange={(e) => setHeaderFile(e.target.files?.[0] || null)} />
+                        <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setHeaderFile(e.target.files?.[0] || null)} />
                         {headerFile ? headerFile.name : lastHeaderName ? `Último: ${lastHeaderName}` : "Escolher Imagem"}
                       </label>
                     </div>
@@ -343,24 +349,12 @@ const CardGenerator: React.FC = () => {
                   </Button>
                   <Button 
                     onClick={handleGenerateJornal} 
-                    disabled={cards.length === 0 || isGeneratingJornal}
+                    disabled={cards.length === 0 || isGeneratingJornal || !isJornalConfigComplete}
                     className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-[10px] font-bold h-12 rounded-xl shadow-lg shadow-blue-500/20"
                   >
                     {isGeneratingJornal ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
                     GERAR JORNAL PDF
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-blue-600/10 border-blue-500/20 shadow-xl">
-              <CardContent className="p-6 flex items-start gap-4">
-                <Info className="w-6 h-6 text-blue-400 shrink-0" />
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-blue-200 uppercase tracking-wider">Dica do Sistema</h4>
-                  <p className="text-xs text-blue-200/60 leading-relaxed">
-                    A versão 3.0 agora processa cards em paralelo usando seu servidor de alta performance. O tempo médio de geração é de 2 segundos por card.
-                  </p>
                 </div>
               </CardContent>
             </Card>
