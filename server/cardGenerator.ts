@@ -10,7 +10,6 @@ const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
 const IMG_DIR = path.join(BASE_DIR, "tmp_img");
 const JORNAL_MANIFEST_PATH = path.join(TMP_DIR, "jornal_manifest.json");
-const JORNAL_OPTIONS_PATH = path.join(TMP_DIR, "jornal_last_options.json");
 
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
@@ -39,18 +38,6 @@ export class CardGenerator extends EventEmitter {
 
     if (!matchedKey) return "";
     return String(row[matchedKey] ?? "").trim();
-  }
-
-  getCategoriaValue(row: Record<string, unknown>): string {
-    const direct = this.getRowValue(row, "categoria", "categorias");
-    if (direct) return direct;
-
-    const fuzzyKey = Object.keys(row).find((key) =>
-      this.normalizeRowKey(key).includes("categoria")
-    );
-    if (!fuzzyKey) return "";
-
-    return String(row[fuzzyKey] ?? "").trim();
   }
 
   sanitizeFilePart(value: string, fallback = "sem_valor"): string {
@@ -244,7 +231,7 @@ export class CardGenerator extends EventEmitter {
       });
 
       const ordem = this.sanitizeFilePart(this.getRowValue(row, "ordem") || String(processed + 1), String(processed + 1));
-      const categoriaRaw = this.getCategoriaValue(row);
+      const categoriaRaw = this.getRowValue(row, "categoria", "categorias");
       const categoria = this.sanitizeFilePart(categoriaRaw, "sem_categoria");
       const tipoForName = this.sanitizeFilePart(tipo, "tipo");
 
@@ -343,37 +330,6 @@ export class CardGenerator extends EventEmitter {
         ? _legacyOptions
         : _filePathOrOptions;
 
-    let persistedOptions: Record<string, string> = {};
-    if (fs.existsSync(JORNAL_OPTIONS_PATH)) {
-      try {
-        persistedOptions = JSON.parse(fs.readFileSync(JORNAL_OPTIONS_PATH, "utf8"));
-      } catch {
-        persistedOptions = {};
-      }
-    }
-
-    const backgroundColor = "transparent";
-    const categoryBoxColor =
-      options?.categoryBoxColor ||
-      persistedOptions.categoryBoxColor ||
-      "#1D4ED8";
-    const footerText =
-      options?.footerText ??
-      persistedOptions.footerText ??
-      "";
-    const headerPath =
-      options?.headerPath ||
-      persistedOptions.headerPath ||
-      "";
-
-    const optionsToPersist = {
-      backgroundColor,
-      categoryBoxColor,
-      footerText,
-      headerPath,
-    };
-    fs.writeFileSync(JORNAL_OPTIONS_PATH, JSON.stringify(optionsToPersist, null, 2), "utf8");
-
     const files = fs
       .readdirSync(IMG_DIR)
       .filter((f) => f.endsWith(".png"))
@@ -385,52 +341,16 @@ export class CardGenerator extends EventEmitter {
         return aNum - bNum;
       });
 
-    try {
-      let manifestEntries: Array<{ imageFile: string; categoria: string }> = [];
-      if (fs.existsSync(JORNAL_MANIFEST_PATH)) {
-        try {
-          const parsedManifest = JSON.parse(fs.readFileSync(JORNAL_MANIFEST_PATH, "utf8"));
-          manifestEntries = Array.isArray(parsedManifest)
-            ? parsedManifest
-            : files.map((file) => ({ imageFile: file, categoria: "SEM CATEGORIA" }));
-        } catch {
-          manifestEntries = files.map((file) => ({ imageFile: file, categoria: "SEM CATEGORIA" }));
-        }
-      } else {
-        manifestEntries = files.map((file) => ({ imageFile: file, categoria: "SEM CATEGORIA" }));
-      }
+    const manifestEntries: Array<{ imageFile: string; categoria: string }> = fs.existsSync(JORNAL_MANIFEST_PATH)
+      ? JSON.parse(fs.readFileSync(JORNAL_MANIFEST_PATH, "utf8"))
+      : files.map((file) => ({ imageFile: file, categoria: "SEM CATEGORIA" }));
 
-      const columns = Math.max(1, options?.columns ?? 3);
-      const gap = Math.max(0, options?.gap ?? 24);
-      const padding = Math.max(0, options?.padding ?? 24);
-      const cardWidth = CARD_WIDTH;
-      const cardHeight = CARD_HEIGHT;
-      const interBoldFontPath = `file://${path.join(BASE_DIR, "fonts", "Inter-Bold.ttf").replace(/\\/g, "/")}`;
-      const interRegularFontPath = `file://${path.join(BASE_DIR, "fonts", "Inter-Regular.ttf").replace(/\\/g, "/")}`;
-      const headerExt = path.extname(headerPath).toLowerCase();
-      const isHeaderPdf = headerExt === ".pdf";
-      let headerImageBase64 =
-        headerPath && !isHeaderPdf ? this.imageToBase64(headerPath) : "";
-
-      if (headerPath && isHeaderPdf && fs.existsSync(headerPath)) {
-        const headerPreviewPage = await this.browser.newPage();
-        try {
-          await headerPreviewPage.setViewport({
-            width: padding * 2 + columns * cardWidth + (columns - 1) * gap,
-            height: 220,
-            deviceScaleFactor: 1,
-          });
-          await headerPreviewPage.goto(`file://${headerPath.replace(/\\/g, "/")}`, {
-            waitUntil: "networkidle0",
-          });
-          const headerBuffer = await headerPreviewPage.screenshot({ type: "png" });
-          headerImageBase64 = `data:image/png;base64,${Buffer.from(headerBuffer).toString("base64")}`;
-        } catch {
-          headerImageBase64 = "";
-        } finally {
-          await headerPreviewPage.close();
-        }
-      }
+    const columns = Math.max(1, options?.columns ?? 3);
+    const gap = Math.max(0, options?.gap ?? 24);
+    const padding = Math.max(0, options?.padding ?? 24);
+    const cardWidth = CARD_WIDTH;
+    const cardHeight = CARD_HEIGHT;
+    const interBoldFontPath = `file://${path.join(BASE_DIR, "fonts", "Inter-Bold.ttf").replace(/\\/g, "/")}`;
 
     let html = `
     <html>
@@ -440,11 +360,6 @@ export class CardGenerator extends EventEmitter {
           font-family: 'Inter';
           src: url('${interBoldFontPath}') format('truetype');
           font-weight: 700;
-        }
-        @font-face {
-          font-family: 'Inter';
-          src: url('${interRegularFontPath}') format('truetype');
-          font-weight: 400;
         }
 
         :root {
@@ -463,7 +378,7 @@ export class CardGenerator extends EventEmitter {
         body {
           margin: 0;
           padding: var(--padding);
-          background: ${backgroundColor};
+          background: transparent;
         }
 
         .grid {
@@ -476,6 +391,134 @@ export class CardGenerator extends EventEmitter {
           display: grid;
           column-gap: var(--gap);
           justify-content: center;
+          color: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .jornal-header {
+          width: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .jornal-header img,
+        .jornal-header embed {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+          border: none;
+          display: block;
+          background: #ffffff;
+        }
+
+        .jornal-footer {
+          width: 100%;
+          padding: 0 24px;
+          font-family: 'Inter', sans-serif;
+          font-size: 24px;
+          line-height: 1.35;
+          color: #1F2937;
+          text-align: center;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .categoria-tarja {
+          width: 100%;
+          height: 72px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .categoria-tarja {
+          width: 100%;
+          height: 72px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .jornal-header {
+          width: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .jornal-header img,
+        .jornal-header embed {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+          border: none;
+          display: block;
+          background: #ffffff;
+        }
+
+        .jornal-footer {
+          width: 100%;
+          padding: 0 24px;
+          font-family: 'Inter', sans-serif;
+          font-size: 24px;
+          line-height: 1.35;
+          color: #1F2937;
+          text-align: center;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .categoria-tarja {
+          width: 100%;
+          height: 72px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .jornal-header {
+          width: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .jornal-header img,
+        .jornal-header embed {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+          border: none;
+          display: block;
+          background: #ffffff;
+        }
+
+        .jornal-footer {
+          width: 100%;
+          padding: 0 24px;
+          font-family: 'Inter', sans-serif;
+          font-size: 24px;
+          line-height: 1.35;
+          color: #1F2937;
+          text-align: center;
+          white-space: pre-wrap;
+          word-break: break-word;
         }
 
         .categoria-tarja {
@@ -537,10 +580,6 @@ export class CardGenerator extends EventEmitter {
       <div class="grid">
     `;
 
-    if (headerPath && headerImageBase64) {
-      html += `<div class="jornal-header"><img src="${headerImageBase64}" alt="Header"></div>`;
-    }
-
     const blocks: Array<
       | { type: "banner"; categoria: string; color: string }
       | { type: "row"; cards: Array<{ imageFile: string; categoria: string }> }
@@ -576,7 +615,7 @@ export class CardGenerator extends EventEmitter {
 
     for (const block of blocks) {
       if (block.type === "banner") {
-        html += `<div class="categoria-tarja" style="background:${categoryBoxColor};">${block.categoria}</div>`;
+        html += `<div class="categoria-tarja" style="background:${block.color};">${block.categoria}</div>`;
         continue;
       }
 
@@ -598,28 +637,19 @@ export class CardGenerator extends EventEmitter {
     </html>
     `;
 
-      const jornalFileName = `${this.uploadedSpreadsheetBaseName}.pdf`;
-      const jornalPath = path.join(OUTPUT_DIR, jornalFileName);
+    const jornalFileName = `${this.uploadedSpreadsheetBaseName}.pdf`;
+    const jornalPath = path.join(OUTPUT_DIR, jornalFileName);
 
-      const bannerCount = blocks.filter((block) => block.type === "banner").length;
-      const rowCount = blocks.filter((block) => block.type === "row").length;
-      const bannerHeight = 72;
-      const headerHeight = headerPath ? 220 : 0;
-      const footerHeight = footerText ? 90 : 0;
-      const contentHeight =
-        rowCount * cardHeight +
-        bannerCount * bannerHeight +
-        Math.max(0, blocks.length - 1) * gap;
+    const bannerCount = blocks.filter((block) => block.type === "banner").length;
+    const rowCount = blocks.filter((block) => block.type === "row").length;
+    const bannerHeight = 72;
+    const contentHeight =
+      rowCount * cardHeight +
+      bannerCount * bannerHeight +
+      Math.max(0, blocks.length - 1) * gap;
 
-      const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
-      const pdfHeight =
-        padding * 2 +
-        contentHeight +
-        (headerHeight ? headerHeight + gap : 0) +
-        (footerHeight ? footerHeight + gap : 0);
-
-      const page = await this.browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
+    const pdfHeight = padding * 2 + contentHeight;
 
       await page.pdf({
         path: jornalPath,
@@ -630,27 +660,14 @@ export class CardGenerator extends EventEmitter {
         preferCSSPageSize: true,
       });
 
-      return jornalPath;
-    } catch (error) {
-      const columns = 3;
-      const gap = 24;
-      const padding = 24;
-      const cardWidth = CARD_WIDTH;
-      const cardHeight = CARD_HEIGHT;
-      const rows = Math.ceil(files.length / columns);
-      const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
-      const pdfHeight = padding * 2 + rows * cardHeight + Math.max(0, rows - 1) * gap;
-      const jornalFileName = `${this.uploadedSpreadsheetBaseName}.pdf`;
-      const jornalPath = path.join(OUTPUT_DIR, jornalFileName);
-
-      let fallbackHtml = `<html><body style="margin:0;padding:${padding}px;background:transparent;"><div style="display:grid;grid-template-columns:repeat(${columns},${cardWidth}px);gap:${gap}px;">`;
-      for (const file of files) {
-        const filePath = path.join(IMG_DIR, file);
-        if (!fs.existsSync(filePath)) continue;
-        const base64 = fs.readFileSync(filePath).toString("base64");
-        fallbackHtml += `<img src="data:image/png;base64,${base64}" style="width:${cardWidth}px;height:${cardHeight}px;object-fit:cover;" />`;
-      }
-      fallbackHtml += "</div></body></html>";
+    await page.pdf({
+      path: jornalPath,
+      printBackground: true,
+      omitBackground: true,
+      width: `${pdfWidth}px`,
+      height: `${pdfHeight}px`,
+      preferCSSPageSize: true,
+    });
 
       const fallbackPage = await this.browser.newPage();
       await fallbackPage.setContent(fallbackHtml, { waitUntil: "networkidle0" });
