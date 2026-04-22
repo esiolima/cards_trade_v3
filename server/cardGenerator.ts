@@ -407,6 +407,47 @@ export class CardGenerator extends EventEmitter {
           letter-spacing: 1px;
         }
 
+        .categoria-tarja {
+          width: 100%;
+          height: 72px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-family: 'Inter', sans-serif;
+          font-size: 34px;
+          font-weight: 900;
+          letter-spacing: 1px;
+        }
+
+        .jornal-header {
+          width: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+        }
+        .jornal-header img,
+        .jornal-header embed {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+          border: none;
+          display: block;
+          background: #ffffff;
+        }
+
+        .jornal-footer {
+          width: 100%;
+          padding: 0 24px;
+          font-family: 'Inter', sans-serif;
+          font-size: 24px;
+          line-height: 1.35;
+          color: #1F2937;
+          text-align: center;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
         .card {
           width: var(--card-width);
           height: var(--card-height);
@@ -477,6 +518,7 @@ export class CardGenerator extends EventEmitter {
 
     html += `
       </div>
+      ${footerText ? `<div class="jornal-footer">${footerText}</div>` : ""}
     </body>
     </html>
     `;
