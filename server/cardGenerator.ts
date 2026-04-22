@@ -1,3 +1,5 @@
+// (CÓDIGO COMPLETO CORRIGIDO - SEM QUEBRAR PROGRESSO)
+
 import path from "path";
 import fs from "fs";
 import puppeteer, { Browser } from "puppeteer-core";
@@ -50,6 +52,8 @@ export class CardGenerator extends EventEmitter {
     const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
     const cards: any[] = [];
+    const total = rows.length;
+    let processed = 0;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -88,6 +92,14 @@ export class CardGenerator extends EventEmitter {
       } finally {
         await page.close();
       }
+
+      processed++;
+
+      this.emit("progress", {
+        processed,
+        total,
+        percentage: Math.round((processed / total) * 100),
+      });
     }
 
     return cards;
