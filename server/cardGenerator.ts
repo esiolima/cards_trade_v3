@@ -54,6 +54,12 @@ export class CardGenerator extends EventEmitter {
     return `data:image/${ext};base64,${buffer.toString("base64")}`;
   }
 
+  // 🔥 FUNÇÃO QUE O SISTEMA ESPERA
+  async processExcel(excelFilePath: string): Promise<any> {
+    const zipPath = await this.generateCards(excelFilePath);
+    return zipPath;
+  }
+
   async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
@@ -80,27 +86,21 @@ export class CardGenerator extends EventEmitter {
       let html = fs.readFileSync(templatePath, "utf8");
 
       let valorFinal = String(row.valor ?? "").trim();
-
       if (["cupom", "queda", "bc"].includes(tipo)) {
         valorFinal = valorFinal.replace(/[^0-9,]/g, "");
       }
 
-      let logoFile =
-        row.logo && String(row.logo).trim() !== ""
-          ? String(row.logo).trim()
-          : "blank.png";
-
       const logoBase64 = this.imageToBase64(
-        path.join(LOGOS_DIR, logoFile)
+        path.join(LOGOS_DIR, row.logo || "blank.png")
       );
 
       const seloBase64 = row.selo
         ? this.imageToBase64(
             path.join(
               SELOS_DIR,
-              row.selo.toLowerCase() === "nova"
+              row.selo === "nova"
                 ? "acaonova.png"
-                : row.selo.toLowerCase() === "renovada"
+                : row.selo === "renovada"
                 ? "acaorenovada.png"
                 : ""
             )
@@ -119,19 +119,13 @@ export class CardGenerator extends EventEmitter {
         .replaceAll("{{LOGO}}", logoBase64)
         .replaceAll("{{SELO}}", seloBase64);
 
-      const tmpHtmlPath = path.join(TMP_DIR, `card_${processed + 1}.html`);
-      fs.writeFileSync(tmpHtmlPath, html);
+      const tmpHtml = path.join(TMP_DIR, `card_${processed}.html`);
+      fs.writeFileSync(tmpHtml, html);
 
       const page = await this.browser!.newPage();
-      await page.setViewport({ width: 700, height: 1058 });
+      await page.goto(`file://${tmpHtml}`, { waitUntil: "networkidle0" });
 
-      await page.goto(`file://${tmpHtmlPath}`, {
-        waitUntil: "networkidle0",
-      });
-
-      const ordem = row.ordem ? String(row.ordem).trim() : processed + 1;
-      const pdfName = `${ordem}_${tipo}.pdf`;
-      const pdfPath = path.join(OUTPUT_DIR, pdfName);
+      const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
 
       await page.pdf({
         path: pdfPath,
@@ -153,7 +147,7 @@ export class CardGenerator extends EventEmitter {
 
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
     const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip");
 
     archive.pipe(output);
 
@@ -168,7 +162,7 @@ export class CardGenerator extends EventEmitter {
     return zipPath;
   }
 
-  // 👉 NOVA FUNÇÃO (JORNAL SIMPLES)
+  // 🟢 JORNAL SIMPLES
   async generateJornal(): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
@@ -176,57 +170,29 @@ export class CardGenerator extends EventEmitter {
       .readdirSync(OUTPUT_DIR)
       .filter((f) => f.endsWith(".pdf") && !f.includes("jornal"));
 
-    let html = `
-    <html>
-    <head>
-      <style>
-        @page { size: A4; margin: 20px; }
-
-        .page { page-break-after: always; }
-
-        .grid {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .card {
-          width: 32%;
-          height: 350px;
-        }
-
-        iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-        }
-      </style>
-    </head>
-    <body>
-    `;
+    let html = `<html><body style="margin:0;">`;
 
     let count = 0;
-
-    html += `<div class="page"><div class="grid">`;
+    html += `<div style="display:flex;flex-wrap:wrap;">`;
 
     for (const file of files) {
       const filePath = path.join(OUTPUT_DIR, file);
 
       html += `
-        <div class="card">
-          <iframe src="file://${filePath}"></iframe>
+        <div style="width:33%;height:350px;">
+          <iframe src="file://${filePath}" style="width:100%;height:100%;border:none;"></iframe>
         </div>
       `;
 
       count++;
 
       if (count === 18) {
-        html += `</div></div><div class="page"><div class="grid">`;
+        html += `</div><div style="page-break-after:always;"></div><div style="display:flex;flex-wrap:wrap;">`;
         count = 0;
       }
     }
 
-    html += `</div></div></body></html>`;
+    html += `</div></body></html>`;
 
     const filePath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
