@@ -51,6 +51,13 @@ export class CardGenerator extends EventEmitter {
     return sanitized || fallback;
   }
 
+  sanitizeSpreadsheetBaseName(value: string, fallback = "jornal_ofertas"): string {
+    const cleaned = String(value ?? "")
+      .replace(/[\\/:*?"<>|]/g, "")
+      .trim();
+    return cleaned || fallback;
+  }
+
   pickBannerColor(previousColor?: string): string {
     const palette = [
       "#B91C1C",
@@ -148,7 +155,7 @@ export class CardGenerator extends EventEmitter {
 
     if (_originalFileName) {
       const parsed = path.parse(_originalFileName);
-      this.uploadedSpreadsheetBaseName = this.sanitizeFilePart(parsed.name, "jornal_ofertas");
+      this.uploadedSpreadsheetBaseName = this.sanitizeSpreadsheetBaseName(parsed.name, "jornal_ofertas");
     }
 
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
@@ -224,7 +231,8 @@ export class CardGenerator extends EventEmitter {
       });
 
       const ordem = this.sanitizeFilePart(this.getRowValue(row, "ordem") || String(processed + 1), String(processed + 1));
-      const categoria = this.sanitizeFilePart(this.getRowValue(row, "categoria"), "sem_categoria");
+      const categoriaRaw = this.getRowValue(row, "categoria", "categorias");
+      const categoria = this.sanitizeFilePart(categoriaRaw, "sem_categoria");
       const tipoForName = this.sanitizeFilePart(tipo, "tipo");
 
       let pdfFileName = `${ordem}_${tipoForName}_${categoria}.pdf`;
@@ -251,7 +259,7 @@ export class CardGenerator extends EventEmitter {
 
       manifestEntries.push({
         imageFile: path.basename(imgPath),
-        categoria: this.getRowValue(row, "categoria") || "SEM CATEGORIA",
+        categoria: categoriaRaw || "SEM CATEGORIA",
       });
 
       await page.close();
@@ -342,11 +350,18 @@ export class CardGenerator extends EventEmitter {
     const padding = Math.max(0, options?.padding ?? 24);
     const cardWidth = CARD_WIDTH;
     const cardHeight = CARD_HEIGHT;
+    const interBoldFontPath = `file://${path.join(BASE_DIR, "fonts", "Inter-Bold.ttf").replace(/\\/g, "/")}`;
 
     let html = `
     <html>
     <head>
       <style>
+        @font-face {
+          font-family: 'Inter';
+          src: url('${interBoldFontPath}') format('truetype');
+          font-weight: 700;
+        }
+
         :root {
           --columns: ${columns};
           --card-width: ${cardWidth}px;
@@ -386,10 +401,10 @@ export class CardGenerator extends EventEmitter {
           align-items: center;
           justify-content: center;
           color: #ffffff;
+          font-family: 'Inter', sans-serif;
           font-size: 34px;
           font-weight: 900;
           letter-spacing: 1px;
-          text-transform: uppercase;
         }
 
         .card {
