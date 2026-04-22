@@ -51,8 +51,7 @@ export class CardGenerator extends EventEmitter {
 
   imageToBase64(imagePath: string): string {
     if (!imagePath || !fs.existsSync(imagePath)) return "";
-    const stat = fs.statSync(imagePath);
-    if (!stat.isFile()) return "";
+    if (!fs.statSync(imagePath).isFile()) return "";
 
     const ext = path.extname(imagePath).replace(".", "");
     const buffer = fs.readFileSync(imagePath);
@@ -71,9 +70,7 @@ export class CardGenerator extends EventEmitter {
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
       fs.readdirSync(dir).forEach((file) => {
         const full = path.join(dir, file);
-        if (fs.existsSync(full) && fs.statSync(full).isFile()) {
-          fs.unlinkSync(full);
-        }
+        if (fs.statSync(full).isFile()) fs.unlinkSync(full);
       });
     });
 
@@ -131,19 +128,28 @@ export class CardGenerator extends EventEmitter {
       fs.writeFileSync(tmpHtml, html);
 
       const page = await this.browser.newPage();
-      await page.setViewport({ width: 700, height: 1058 });
-      await page.goto(`file://${tmpHtml}`, { waitUntil: "networkidle0" });
 
-      // PDF
+      // 🔥 CARD EM 1080px REAL
+      await page.setViewport({
+        width: 1080,
+        height: 1620,
+        deviceScaleFactor: 1,
+      });
+
+      await page.goto(`file://${tmpHtml}`, {
+        waitUntil: "networkidle0",
+      });
+
+      // PDF individual
       const pdfPath = path.join(OUTPUT_DIR, `card_${processed}.pdf`);
       await page.pdf({
         path: pdfPath,
-        width: "700px",
-        height: "1058px",
+        width: "1080px",
+        height: "1620px",
         printBackground: true,
       });
 
-      // PNG
+      // PNG alta qualidade
       const imgPath = path.join(IMG_DIR, `card_${processed}.png`);
       await page.screenshot({
         path: imgPath,
@@ -161,7 +167,7 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
-    // ZIP correto
+    // ZIP
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
 
     await new Promise<void>((resolve, reject) => {
@@ -197,45 +203,54 @@ export class CardGenerator extends EventEmitter {
     <html>
     <head>
       <style>
-        @page { size: A4; margin: 20px; }
-        .page { page-break-after: always; }
-        .grid { display: flex; flex-wrap: wrap; gap: 10px; }
-        .card { width: 32%; }
-        img { width: 100%; }
+        body {
+          margin: 0;
+          padding: 40px;
+          background: white;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1080px);
+          gap: 40px;
+          justify-content: center;
+        }
+
+        img {
+          width: 1080px;
+          height: auto;
+        }
       </style>
     </head>
     <body>
+      <div class="grid">
     `;
-
-    let count = 0;
-    html += `<div class="page"><div class="grid">`;
 
     for (const file of files) {
       const filePath = path.join(IMG_DIR, file);
       const buffer = fs.readFileSync(filePath);
       const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
 
-      html += `<div class="card"><img src="${base64}" /></div>`;
-
-      count++;
-
-      if (count === 18) {
-        html += `</div></div><div class="page"><div class="grid">`;
-        count = 0;
-      }
+      html += `<img src="${base64}" />`;
     }
 
-    html += `</div></div></body></html>`;
+    html += `
+      </div>
+    </body>
+    </html>
+    `;
 
     const jornalPath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
     const page = await this.browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
 
+    // 🔥 PDF CONTÍNUO LARGO
     await page.pdf({
       path: jornalPath,
-      format: "A4",
       printBackground: true,
+      width: "3400px",
+      height: `${files.length * 600}px`,
     });
 
     return jornalPath;
