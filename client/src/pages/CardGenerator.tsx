@@ -305,7 +305,7 @@ const CardGenerator: React.FC = () => {
                       <ImageIcon className="w-3 h-3" /> Imagem de Cabeçalho (Header)
                     </Label>
                     <div className="flex gap-2">
-                      <label className="flex-1 cursor-pointer bg-white border border-slate-200 rounded-xl p-3 text-xs hover:bg-slate-50 transition-all truncate text-center font-medium">
+                      <label className="flex-1 cursor-pointer bg-white/5 border border-white/10 rounded-xl p-3 text-xs hover:bg-white/10 transition-all truncate text-center font-medium">
                         <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => setHeaderFile(e.target.files?.[0] || null)} />
                         {headerFile ? headerFile.name : lastHeaderName ? `Último: ${lastHeaderName}` : "Escolher Imagem"}
                       </label>
@@ -360,7 +360,7 @@ const CardGenerator: React.FC = () => {
                   <Button 
                     onClick={handleGenerateJornal} 
                     disabled={cards.length === 0 || isGeneratingJornal || !isJornalConfigComplete}
-                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-[10px] font-bold h-12 rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-[10px] font-bold h-12 rounded-xl shadow-lg shadow-blue-500/20"
                   >
                     {isGeneratingJornal ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
                     GERAR JORNAL PDF
