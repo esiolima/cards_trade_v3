@@ -102,6 +102,31 @@ export class CardGenerator extends EventEmitter {
     return zipPath;
   }
 
+  private async createZipFromOutput(): Promise<string> {
+    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
+
+    await new Promise<void>((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip");
+
+      output.on("close", () => resolve());
+      archive.on("error", reject);
+
+      archive.pipe(output);
+
+      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+        const full = path.join(OUTPUT_DIR, file);
+        if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
+          archive.file(full, { name: file });
+        }
+      });
+
+      archive.finalize();
+    });
+
+    return zipPath;
+  }
+
   async initialize() {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
