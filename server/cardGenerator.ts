@@ -329,6 +329,7 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
+    // ZIP correto
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
     fs.writeFileSync(JORNAL_MANIFEST_PATH, JSON.stringify(manifestEntries, null, 2), "utf8");
 
