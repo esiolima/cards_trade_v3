@@ -17,6 +17,31 @@ const SELOS_DIR = path.join(BASE_DIR, "selos");
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
 
+  private async createZipFromOutput(): Promise<string> {
+    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
+
+    await new Promise<void>((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip");
+
+      output.on("close", () => resolve());
+      archive.on("error", reject);
+
+      archive.pipe(output);
+
+      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+        const full = path.join(OUTPUT_DIR, file);
+        if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
+          archive.file(full, { name: file });
+        }
+      });
+
+      archive.finalize();
+    });
+
+    return zipPath;
+  }
+
   async initialize() {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -63,7 +88,7 @@ export class CardGenerator extends EventEmitter {
     return await this.generateCards(excelFilePath);
   }
 
-  async generateCards(excelFilePath: string): Promise<string> {
+  async generateCards(excelFilePath: string, _originalFileName?: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
@@ -163,31 +188,31 @@ export class CardGenerator extends EventEmitter {
       });
     }
 
-    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
-
-    await new Promise<void>((resolve, reject) => {
-      const output = fs.createWriteStream(zipPath);
-      const archive = archiver("zip");
-
-      output.on("close", () => resolve());
-      archive.on("error", reject);
-
-      archive.pipe(output);
-
-      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-        const full = path.join(OUTPUT_DIR, file);
-        if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
-          archive.file(full, { name: file });
-        }
-      });
-
-      archive.finalize();
-    });
-
-    return zipPath;
+    return this.createZipFromOutput();
   }
 
-  async generateJornal(): Promise<string> {
+  async generateZip(): Promise<string> {
+    const existingZipPath = path.join(OUTPUT_DIR, "cards.zip");
+    if (fs.existsSync(existingZipPath)) return existingZipPath;
+    return this.createZipFromOutput();
+  }
+
+  async generateJornal(
+    _filePathOrOptions?:
+      | string
+      | {
+          headerPath?: string;
+          backgroundColor?: string;
+          categoryBoxColor?: string;
+          footerText?: string;
+        },
+    _legacyOptions?: {
+      headerPath?: string;
+      backgroundColor?: string;
+      categoryBoxColor?: string;
+      footerText?: string;
+    }
+  ): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
     const files = fs
