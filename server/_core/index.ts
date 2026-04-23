@@ -38,7 +38,7 @@ async function startServer() {
       const permanentPath = path.join(uploadsDir, "current_planilha.xlsx");
       fs.copyFileSync(req.file.path, permanentPath);
 
-      const cards = await generator.processExcel(req.file.path);
+      const cards = await generator.processExcel(req.file.path, req.file.originalname);
       fs.unlinkSync(req.file.path);
       
       res.json({ cards });
@@ -64,7 +64,16 @@ async function startServer() {
     try {
       // O multer coloca os campos de texto no req.body e o arquivo no req.file
       const { backgroundColor, categoryBoxColor, footerText } = req.body;
-      const headerPath = req.file ? req.file.path : undefined;
+      let headerPath = req.file ? req.file.path : undefined;
+
+      if (req.file) {
+        const headerExt = path.extname(req.file.originalname || req.file.filename || ".png");
+        const persistedHeaderDir = path.join(process.cwd(), "tmp");
+        if (!fs.existsSync(persistedHeaderDir)) fs.mkdirSync(persistedHeaderDir, { recursive: true });
+        const persistedHeaderPath = path.join(persistedHeaderDir, `last_header${headerExt}`);
+        fs.copyFileSync(req.file.path, persistedHeaderPath);
+        headerPath = persistedHeaderPath;
+      }
 
       console.log("Iniciando geração do jornal com as opções:", { 
         backgroundColor, 
@@ -80,9 +89,9 @@ async function startServer() {
         footerText: footerText || ""
       });
 
-      res.download(pdfPath, "jornal_ofertas.pdf", (err) => {
+      res.download(pdfPath, path.basename(pdfPath), (err) => {
         if (err) console.error("Erro ao enviar PDF:", err);
-        if (headerPath && fs.existsSync(headerPath)) fs.unlinkSync(headerPath);
+        if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       });
     } catch (error: any) {
       console.error("Erro na geração do jornal:", error);

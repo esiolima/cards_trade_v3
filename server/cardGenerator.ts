@@ -8,19 +8,79 @@ import { EventEmitter } from "events";
 const BASE_DIR = path.resolve();
 const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
+const IMG_DIR = path.join(BASE_DIR, "tmp_img");
+const JORNAL_MANIFEST_PATH = path.join(TMP_DIR, "jornal_manifest.json");
+
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
 const LOGOS_DIR = path.join(BASE_DIR, "logos");
 const SELOS_DIR = path.join(BASE_DIR, "selos");
+const CARD_WIDTH = 700;
+const CARD_HEIGHT = 1058;
 
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
+  private uploadedSpreadsheetBaseName = "jornal_ofertas";
+
+  normalizeRowKey(key: unknown): string {
+    return String(key ?? "")
+      .replace(/^\uFEFF/, "")
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  getRowValue(row: Record<string, unknown>, ...aliases: string[]): string {
+    const normalizedAliases = aliases.map((alias) => this.normalizeRowKey(alias));
+    const matchedKey = Object.keys(row).find((key) =>
+      normalizedAliases.includes(this.normalizeRowKey(key))
+    );
+
+    if (!matchedKey) return "";
+    return String(row[matchedKey] ?? "").trim();
+  }
+
+  sanitizeFilePart(value: string, fallback = "sem_valor"): string {
+    const sanitized = String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_");
+
+    return sanitized || fallback;
+  }
+
+  sanitizeSpreadsheetBaseName(value: string, fallback = "jornal_ofertas"): string {
+    const cleaned = String(value ?? "")
+      .replace(/[\\/:*?"<>|]/g, "")
+      .trim();
+    return cleaned || fallback;
+  }
+
+  pickBannerColor(previousColor?: string): string {
+    const palette = [
+      "#B91C1C",
+      "#047857",
+      "#1D4ED8",
+      "#7C3AED",
+      "#C2410C",
+      "#0F766E",
+      "#BE185D",
+      "#374151",
+    ];
+
+    if (palette.length === 1) return palette[0];
+
+    const candidates = palette.filter((color) => color !== previousColor);
+    const index = Math.floor(Math.random() * candidates.length);
+    return candidates[index] ?? palette[0];
+  }
 
   async initialize() {
-    if (!fs.existsSync(OUTPUT_DIR))
-      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-
-    if (!fs.existsSync(TMP_DIR))
-      fs.mkdirSync(TMP_DIR, { recursive: true });
+    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+    if (!fs.existsSync(IMG_DIR)) fs.mkdirSync(IMG_DIR, { recursive: true });
 
     this.browser = await puppeteer.launch({
       executablePath:
@@ -69,6 +129,7 @@ export class CardGenerator extends EventEmitter {
 
     const total = rows.length;
     let processed = 0;
+    const manifestEntries: Array<{ imageFile: string; categoria: string }> = [];
 
     for (const row of rows) {
       const tipo = this.normalizeType(row.tipo);
