@@ -77,6 +77,31 @@ export class CardGenerator extends EventEmitter {
     return candidates[index] ?? palette[0];
   }
 
+  private async createZipFromOutput(): Promise<string> {
+    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
+
+    await new Promise<void>((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip");
+
+      output.on("close", () => resolve());
+      archive.on("error", reject);
+
+      archive.pipe(output);
+
+      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+        const full = path.join(OUTPUT_DIR, file);
+        if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
+          archive.file(full, { name: file });
+        }
+      });
+
+      archive.finalize();
+    });
+
+    return zipPath;
+  }
+
   async initialize() {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -111,7 +136,8 @@ export class CardGenerator extends EventEmitter {
 
   imageToBase64(imagePath: string): string {
     if (!imagePath || !fs.existsSync(imagePath)) return "";
-    if (!fs.statSync(imagePath).isFile()) return "";
+    const stat = fs.statSync(imagePath);
+    if (!stat.isFile()) return "";
 
     const ext = path.extname(imagePath).replace(".", "");
     const buffer = fs.readFileSync(imagePath);
@@ -161,7 +187,9 @@ export class CardGenerator extends EventEmitter {
     [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
       fs.readdirSync(dir).forEach((file) => {
         const full = path.join(dir, file);
-        if (fs.statSync(full).isFile()) fs.unlinkSync(full);
+        if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+          fs.unlinkSync(full);
+        }
       });
     });
 
@@ -219,6 +247,8 @@ export class CardGenerator extends EventEmitter {
       fs.writeFileSync(tmpHtml, html);
 
       const page = await this.browser.newPage();
+      await page.setViewport({ width: 700, height: 1058 });
+      await page.goto(`file://${tmpHtml}`, { waitUntil: "networkidle0" });
 
       await page.setViewport({
         width: CARD_WIDTH,
@@ -251,6 +281,7 @@ export class CardGenerator extends EventEmitter {
         printBackground: true,
       });
 
+      // PNG
       const imgPath = path.join(IMG_DIR, `card_${processed}.png`);
       await page.screenshot({
         path: imgPath,
@@ -295,7 +326,10 @@ export class CardGenerator extends EventEmitter {
       archive.finalize();
     });
 
-    return zipPath;
+  async generateZip(): Promise<string> {
+    const existingZipPath = path.join(OUTPUT_DIR, "cards.zip");
+    if (fs.existsSync(existingZipPath)) return existingZipPath;
+    return this.createZipFromOutput();
   }
 
   async generateZip(): Promise<string> {
@@ -659,7 +693,6 @@ export class CardGenerator extends EventEmitter {
       </style>
     </head>
     <body>
-      <div class="grid">
     `;
 
     const blocks: Array<
@@ -744,6 +777,7 @@ export class CardGenerator extends EventEmitter {
 
     await page.pdf({
       path: jornalPath,
+      format: "A4",
       printBackground: true,
       omitBackground: true,
       width: `${pdfWidth}px`,
