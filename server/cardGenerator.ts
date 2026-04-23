@@ -82,14 +82,12 @@ export class CardGenerator extends EventEmitter {
     if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
     if (!fs.existsSync(IMG_DIR)) fs.mkdirSync(IMG_DIR, { recursive: true });
 
-    if (!this.browser) {
-      this.browser = await puppeteer.launch({
-        executablePath:
-          process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-        headless: true,
-      });
-    }
+    this.browser = await puppeteer.launch({
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: true,
+    });
   }
 
   normalizeType(tipo: string): string {
@@ -111,58 +109,18 @@ export class CardGenerator extends EventEmitter {
 
   imageToBase64(imagePath: string): string {
     if (!imagePath || !fs.existsSync(imagePath)) return "";
-    if (!fs.statSync(imagePath).isFile()) return "";
-
     const ext = path.extname(imagePath).replace(".", "");
     const buffer = fs.readFileSync(imagePath);
     return `data:image/${ext};base64,${buffer.toString("base64")}`;
   }
 
-  resolveLogoPath(rawLogoValue: unknown): string {
-    const fallbackLogo = path.join(LOGOS_DIR, "blank.png");
-    const normalized = String(rawLogoValue ?? "").trim();
-    if (!normalized) return fallbackLogo;
-
-    const candidates = [
-      normalized,
-      `${normalized}.png`,
-      `${normalized}.jpg`,
-      `${normalized}.jpeg`,
-      normalized.toLowerCase(),
-      `${normalized.toLowerCase()}.png`,
-      `${normalized.toLowerCase()}.jpg`,
-      `${normalized.toLowerCase()}.jpeg`,
-    ];
-
-    const uniqueCandidates = candidates.filter((candidate, index) => candidates.indexOf(candidate) === index);
-    for (const candidate of uniqueCandidates) {
-      const fullPath = path.join(LOGOS_DIR, candidate);
-      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
-        return fullPath;
-      }
-    }
-
-    return fallbackLogo;
-  }
-
-  async processExcel(excelFilePath: string, originalFileName?: string): Promise<string> {
-    await this.initialize();
-    return await this.generateCards(excelFilePath, originalFileName);
-  }
-
-  async generateCards(excelFilePath: string, _originalFileName?: string): Promise<string> {
+  async generateCards(excelFilePath: string): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    if (_originalFileName) {
-      const parsed = path.parse(_originalFileName);
-      this.uploadedSpreadsheetBaseName = this.sanitizeSpreadsheetBaseName(parsed.name, "jornal_ofertas");
-    }
-
-    [OUTPUT_DIR, TMP_DIR, IMG_DIR].forEach((dir) => {
-      fs.readdirSync(dir).forEach((file) => {
-        const full = path.join(dir, file);
-        if (fs.statSync(full).isFile()) fs.unlinkSync(full);
-      });
+    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+      if (file.endsWith(".pdf") || file.endsWith(".zip")) {
+        fs.unlinkSync(path.join(OUTPUT_DIR, file));
+      }
     });
 
     const workbook = xlsx.readFile(excelFilePath);
@@ -174,7 +132,7 @@ export class CardGenerator extends EventEmitter {
     const manifestEntries: Array<{ imageFile: string; categoria: string }> = [];
 
     for (const row of rows) {
-      const tipo = this.normalizeType(this.getRowValue(row, "tipo"));
+      const tipo = this.normalizeType(row.tipo);
       if (!tipo) continue;
 
       const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
@@ -182,21 +140,28 @@ export class CardGenerator extends EventEmitter {
 
       let html = fs.readFileSync(templatePath, "utf8");
 
-      let valorFinal = this.getRowValue(row, "valor");
+      let valorFinal = String(row.valor ?? "").trim();
+
       if (["cupom", "queda", "bc"].includes(tipo)) {
         valorFinal = valorFinal.replace(/[^0-9,]/g, "");
       }
 
-      const logoBase64 = this.imageToBase64(this.resolveLogoPath(this.getRowValue(row, "logo")));
+      let logoFile =
+        row.logo && String(row.logo).trim() !== ""
+          ? String(row.logo).trim()
+          : "blank.png";
 
-      const seloValue = this.getRowValue(row, "selo").toLowerCase();
-      const seloBase64 = seloValue
+      const logoBase64 = this.imageToBase64(
+        path.join(LOGOS_DIR, logoFile)
+      );
+
+      const seloBase64 = row.selo
         ? this.imageToBase64(
             path.join(
               SELOS_DIR,
-              seloValue === "nova"
+              row.selo.toLowerCase() === "nova"
                 ? "acaonova.png"
-                : seloValue === "renovada"
+                : row.selo.toLowerCase() === "renovada"
                 ? "acaorenovada.png"
                 : ""
             )
@@ -204,62 +169,36 @@ export class CardGenerator extends EventEmitter {
         : "";
 
       html = html
-        .replaceAll("{{TEXTO}}", this.getRowValue(row, "texto"))
+        .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
         .replaceAll("{{VALOR}}", valorFinal)
-        .replaceAll("{{COMPLEMENTO}}", this.getRowValue(row, "complemento"))
-        .replaceAll("{{LEGAL}}", this.getRowValue(row, "legal"))
-        .replaceAll("{{SEGMENTO}}", this.getRowValue(row, "segmento", "segmento de clientes"))
-        .replaceAll("{{CUPOM}}", this.getRowValue(row, "cupom"))
-        .replaceAll("{{UF}}", this.getRowValue(row, "uf") ? `UF: ${this.getRowValue(row, "uf")}` : "")
-        .replaceAll("{{URN}}", this.getRowValue(row, "urn") ? `URN: ${this.getRowValue(row, "urn")}` : "")
+        .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
+        .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
+        .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
+        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
+        .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
+        .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
         .replaceAll("{{LOGO}}", logoBase64)
         .replaceAll("{{SELO}}", seloBase64);
 
-      const tmpHtml = path.join(TMP_DIR, `card_${processed}.html`);
-      fs.writeFileSync(tmpHtml, html);
+      const tmpHtmlPath = path.join(TMP_DIR, `card_${processed + 1}.html`);
+      fs.writeFileSync(tmpHtmlPath, html);
 
-      const page = await this.browser.newPage();
+      const page = await this.browser!.newPage();
+      await page.setViewport({ width: 700, height: 1058 });
 
-      await page.setViewport({
-        width: CARD_WIDTH,
-        height: CARD_HEIGHT,
-        deviceScaleFactor: 1,
-      });
-
-      await page.goto(`file://${tmpHtml}`, {
+      await page.goto(`file://${tmpHtmlPath}`, {
         waitUntil: "networkidle0",
       });
 
-      const ordem = this.sanitizeFilePart(this.getRowValue(row, "ordem") || String(processed + 1), String(processed + 1));
-      const categoriaRaw = this.getRowValue(row, "categoria", "categorias");
-      const categoria = this.sanitizeFilePart(categoriaRaw, "sem_categoria");
-      const tipoForName = this.sanitizeFilePart(tipo, "tipo");
-
-      let pdfFileName = `${ordem}_${tipoForName}_${categoria}.pdf`;
-      let pdfPath = path.join(OUTPUT_DIR, pdfFileName);
-      let duplicateSuffix = 2;
-      while (fs.existsSync(pdfPath)) {
-        pdfFileName = `${ordem}_${tipoForName}_${categoria}_${duplicateSuffix}.pdf`;
-        pdfPath = path.join(OUTPUT_DIR, pdfFileName);
-        duplicateSuffix++;
-      }
+      const ordem = row.ordem ? String(row.ordem).trim() : processed + 1;
+      const pdfName = `${ordem}_${tipo}.pdf`;
+      const pdfPath = path.join(OUTPUT_DIR, pdfName);
 
       await page.pdf({
         path: pdfPath,
-        width: `${CARD_WIDTH}px`,
-        height: `${CARD_HEIGHT}px`,
+        width: "700px",
+        height: "1058px",
         printBackground: true,
-      });
-
-      const imgPath = path.join(IMG_DIR, `card_${processed}.png`);
-      await page.screenshot({
-        path: imgPath,
-        type: "png",
-      });
-
-      manifestEntries.push({
-        imageFile: path.basename(imgPath),
-        categoria: categoriaRaw || "SEM CATEGORIA",
       });
 
       await page.close();
@@ -274,314 +213,94 @@ export class CardGenerator extends EventEmitter {
     }
 
     const zipPath = path.join(OUTPUT_DIR, "cards.zip");
-    fs.writeFileSync(JORNAL_MANIFEST_PATH, JSON.stringify(manifestEntries, null, 2), "utf8");
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
 
-    await new Promise<void>((resolve, reject) => {
-      const output = fs.createWriteStream(zipPath);
-      const archive = archiver("zip");
+    archive.pipe(output);
 
-      output.on("close", () => resolve());
-      archive.on("error", reject);
-
-      archive.pipe(output);
-
-      fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-        const full = path.join(OUTPUT_DIR, file);
-        if (fs.statSync(full).isFile() && file.endsWith(".pdf")) {
-          archive.file(full, { name: file });
-        }
-      });
-
-      archive.finalize();
+    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
+      if (file.endsWith(".pdf")) {
+        archive.file(path.join(OUTPUT_DIR, file), { name: file });
+      }
     });
 
+    await archive.finalize();
+
     return zipPath;
   }
 
-  async generateZip(): Promise<string> {
-    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
-    if (!fs.existsSync(zipPath)) {
-      throw new Error("Arquivo ZIP ainda não foi gerado");
-    }
-    return zipPath;
-  }
-
-  async generateJornal(_filePathOrOptions?: string | {
-    columns?: number;
-    gap?: number;
-    padding?: number;
-    headerPath?: string;
-    backgroundColor?: string;
-    categoryBoxColor?: string;
-    footerText?: string;
-  }, _legacyOptions?: {
-    columns?: number;
-    gap?: number;
-    padding?: number;
-    headerPath?: string;
-    backgroundColor?: string;
-    categoryBoxColor?: string;
-    footerText?: string;
-  }): Promise<string> {
+  // 👉 NOVA FUNÇÃO (JORNAL SIMPLES)
+  async generateJornal(): Promise<string> {
     if (!this.browser) throw new Error("Browser not initialized");
 
-    const options =
-      typeof _filePathOrOptions === "string"
-        ? _legacyOptions
-        : _filePathOrOptions;
-
     const files = fs
-      .readdirSync(IMG_DIR)
-      .filter((f) => f.endsWith(".png"))
-      .sort((a, b) => {
-        const aMatch = a.match(/\d+/);
-        const bMatch = b.match(/\d+/);
-        const aNum = aMatch ? Number(aMatch[0]) : 0;
-        const bNum = bMatch ? Number(bMatch[0]) : 0;
-        return aNum - bNum;
-      });
-
-    const manifestEntries: Array<{ imageFile: string; categoria: string }> = fs.existsSync(JORNAL_MANIFEST_PATH)
-      ? JSON.parse(fs.readFileSync(JORNAL_MANIFEST_PATH, "utf8"))
-      : files.map((file) => ({ imageFile: file, categoria: "SEM CATEGORIA" }));
-
-    const columns = Math.max(1, options?.columns ?? 3);
-    const gap = Math.max(0, options?.gap ?? 24);
-    const padding = Math.max(0, options?.padding ?? 24);
-    const cardWidth = CARD_WIDTH;
-    const cardHeight = CARD_HEIGHT;
-    const interBoldFontPath = `file://${path.join(BASE_DIR, "fonts", "Inter-Bold.ttf").replace(/\\/g, "/")}`;
+      .readdirSync(OUTPUT_DIR)
+      .filter((f) => f.endsWith(".pdf") && !f.includes("jornal"));
 
     let html = `
     <html>
     <head>
       <style>
-        @font-face {
-          font-family: 'Inter';
-          src: url('${interBoldFontPath}') format('truetype');
-          font-weight: 700;
-        }
+        @page { size: A4; margin: 20px; }
 
-        :root {
-          --columns: ${columns};
-          --card-width: ${cardWidth}px;
-          --card-height: ${cardHeight}px;
-          --gap: ${gap}px;
-          --padding: ${padding}px;
-        }
-
-        @page {
-          size: ${padding * 2 + columns * cardWidth + (columns - 1) * gap}px auto;
-          margin: 0;
-        }
-
-        body {
-          margin: 0;
-          padding: var(--padding);
-          background: transparent;
-        }
+        .page { page-break-after: always; }
 
         .grid {
           display: flex;
-          flex-direction: column;
-          row-gap: var(--gap);
-        }
-
-        .row {
-          display: grid;
-          column-gap: var(--gap);
-          justify-content: center;
-          color: #ffffff;
-          font-family: 'Inter', sans-serif;
-          font-size: 34px;
-          font-weight: 900;
-          letter-spacing: 1px;
-        }
-
-        .jornal-header {
-          width: 100%;
-          border-radius: 24px;
-          overflow: hidden;
-        }
-        .jornal-header img,
-        .jornal-header embed {
-          width: 100%;
-          height: 220px;
-          object-fit: cover;
-          border: none;
-          display: block;
-          background: #ffffff;
-        }
-
-        .jornal-footer {
-          width: 100%;
-          padding: 0 24px;
-          font-family: 'Inter', sans-serif;
-          font-size: 24px;
-          line-height: 1.35;
-          color: #1F2937;
-          text-align: center;
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-
-        .categoria-tarja {
-          width: 100%;
-          height: 72px;
-          border-radius: 999px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #ffffff;
-          font-family: 'Inter', sans-serif;
-          font-size: 34px;
-          font-weight: 900;
-          letter-spacing: 1px;
-        }
-
-        .categoria-tarja {
-          width: 100%;
-          height: 72px;
-          border-radius: 999px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #ffffff;
-          font-family: 'Inter', sans-serif;
-          font-size: 34px;
-          font-weight: 900;
-          letter-spacing: 1px;
-        }
-
-        .jornal-header {
-          width: 100%;
-          border-radius: 24px;
-          overflow: hidden;
-        }
-        .jornal-header img,
-        .jornal-header embed {
-          width: 100%;
-          height: 220px;
-          object-fit: cover;
-          border: none;
-          display: block;
-          background: #ffffff;
-        }
-
-        .jornal-footer {
-          width: 100%;
-          padding: 0 24px;
-          font-family: 'Inter', sans-serif;
-          font-size: 24px;
-          line-height: 1.35;
-          color: #1F2937;
-          text-align: center;
-          white-space: pre-wrap;
-          word-break: break-word;
+          flex-wrap: wrap;
+          gap: 10px;
         }
 
         .card {
-          width: var(--card-width);
-          height: var(--card-height);
-          overflow: hidden;
-          display: flex;
+          width: 32%;
+          height: 350px;
         }
 
-        .card img {
-          width: var(--card-width);
-          height: var(--card-height);
-          object-fit: cover;
+        iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
         }
       </style>
     </head>
     <body>
-      <div class="grid">
     `;
 
-    const blocks: Array<
-      | { type: "banner"; categoria: string; color: string }
-      | { type: "row"; cards: Array<{ imageFile: string; categoria: string }> }
-    > = [];
+    let count = 0;
 
-    let currentRow: Array<{ imageFile: string; categoria: string }> = [];
-    let previousCategoriaKey = "";
-    let previousBannerColor: string | undefined;
+    html += `<div class="page"><div class="grid">`;
 
-    for (const entry of manifestEntries) {
-      const categoriaLabel = (entry.categoria || "SEM CATEGORIA").trim();
-      const categoriaKey = this.normalizeRowKey(categoriaLabel);
+    for (const file of files) {
+      const filePath = path.join(OUTPUT_DIR, file);
 
-      if (categoriaKey && categoriaKey !== previousCategoriaKey) {
-        if (currentRow.length > 0) {
-          blocks.push({ type: "row", cards: currentRow });
-          currentRow = [];
-        }
+      html += `
+        <div class="card">
+          <iframe src="file://${filePath}"></iframe>
+        </div>
+      `;
 
-        const color = this.pickBannerColor(previousBannerColor);
-        previousBannerColor = color;
-        blocks.push({ type: "banner", categoria: categoriaLabel, color });
-        previousCategoriaKey = categoriaKey;
-      }
+      count++;
 
-      currentRow.push(entry);
-      if (currentRow.length === columns) {
-        blocks.push({ type: "row", cards: currentRow });
-        currentRow = [];
+      if (count === 18) {
+        html += `</div></div><div class="page"><div class="grid">`;
+        count = 0;
       }
     }
-    if (currentRow.length > 0) blocks.push({ type: "row", cards: currentRow });
 
-    for (const block of blocks) {
-      if (block.type === "banner") {
-        html += `<div class="categoria-tarja" style="background:${block.color};">${block.categoria}</div>`;
-        continue;
-      }
+    html += `</div></div></body></html>`;
 
-      html += `<div class="row" style="grid-template-columns: repeat(${block.cards.length}, var(--card-width));">`;
-      for (const card of block.cards) {
-        const filePath = path.join(IMG_DIR, card.imageFile);
-        if (!fs.existsSync(filePath)) continue;
-        const buffer = fs.readFileSync(filePath);
-        const base64 = `data:image/png;base64,${buffer.toString("base64")}`;
-        html += `<div class="card"><img src="${base64}" /></div>`;
-      }
-      html += `</div>`;
-    }
+    const filePath = path.join(OUTPUT_DIR, "jornal_ofertas.pdf");
 
-    html += `
-      </div>
-      ${footerText ? `<div class="jornal-footer">${footerText}</div>` : ""}
-    </body>
-    </html>
-    `;
-
-    const jornalFileName = `${this.uploadedSpreadsheetBaseName}.pdf`;
-    const jornalPath = path.join(OUTPUT_DIR, jornalFileName);
-
-    const bannerCount = blocks.filter((block) => block.type === "banner").length;
-    const rowCount = blocks.filter((block) => block.type === "row").length;
-    const bannerHeight = 72;
-    const contentHeight =
-      rowCount * cardHeight +
-      bannerCount * bannerHeight +
-      Math.max(0, blocks.length - 1) * gap;
-
-    const pdfWidth = padding * 2 + columns * cardWidth + (columns - 1) * gap;
-    const pdfHeight = padding * 2 + contentHeight;
-
-    const page = await this.browser.newPage();
+    const page = await this.browser!.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
 
     await page.pdf({
-      path: jornalPath,
+      path: filePath,
+      format: "A4",
       printBackground: true,
-      omitBackground: true,
-      width: `${pdfWidth}px`,
-      height: `${pdfHeight}px`,
-      preferCSSPageSize: true,
     });
 
-    return jornalPath;
+    return filePath;
   }
 
   async close() {
