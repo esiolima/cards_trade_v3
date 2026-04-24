@@ -231,9 +231,6 @@ export class CardGenerator extends EventEmitter {
     return cards;
   }
 
-    return cards;
-  }
-
   async generateZip(): Promise<string> {
     const date = this.getDateStamp();
     const zipPath = path.join(OUTPUT_DIR, `cards_${date}.zip`);

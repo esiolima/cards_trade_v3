@@ -1,209 +1,33 @@
-import path from "path";
 import fs from "fs";
-import puppeteer, { Browser } from "puppeteer-core";
-import archiver from "archiver";
-import xlsx from "xlsx";
-import { EventEmitter } from "events";
+import os from "os";
+import path from "path";
+import { describe, expect, it } from "vitest";
 
-const BASE_DIR = path.resolve();
-const OUTPUT_DIR = path.join(BASE_DIR, "output");
-const TMP_DIR = path.join(BASE_DIR, "tmp");
-const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
-const LOGOS_DIR = path.join(BASE_DIR, "logos");
-const SELOS_DIR = path.join(BASE_DIR, "selos");
+import { CardGenerator } from "./cardGenerator";
 
-export class CardGenerator extends EventEmitter {
-  private browser: Browser | null = null;
+describe("CardGenerator", () => {
+  it("normaliza os tipos de card suportados", () => {
+    const generator = new CardGenerator();
 
-  async initialize() {
-    if (!fs.existsSync(OUTPUT_DIR))
-      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    expect(generator.normalizeType("Promoção")).toBe("promocao");
+    expect(generator.normalizeType("Cupom")).toBe("cupom");
+    expect(generator.normalizeType("Queda de preço")).toBe("queda");
+    expect(generator.normalizeType("Cashback especial")).toBe("cashback");
+    expect(generator.normalizeType("BC")).toBe("bc");
+    expect(generator.normalizeType("tipo inválido")).toBe("");
+  });
 
-    if (!fs.existsSync(TMP_DIR))
-      fs.mkdirSync(TMP_DIR, { recursive: true });
+  it("converte imagem existente para base64", () => {
+    const generator = new CardGenerator();
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "card-generator-"));
+    const imagePath = path.join(tempDir, "logo.png");
 
-    this.browser = await puppeteer.launch({
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      headless: true,
-    });
-  }
+    fs.writeFileSync(imagePath, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 
-  normalizeType(tipo: string): string {
-    if (!tipo) return "";
+    const encoded = generator.imageToBase64(imagePath);
 
-    const normalized = String(tipo)
-      .toLowerCase()
-      .trim()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+    expect(encoded).toMatch(/^data:image\/png;base64,/);
 
-    if (normalized.includes("promo")) return "promocao";
-    if (normalized.includes("cupom")) return "cupom";
-    if (normalized.includes("queda")) return "queda";
-    if (normalized.includes("bc")) return "bc";
-
-    return "";
-  }
-
-  imageToBase64(imagePath: string): string {
-    if (!imagePath || !fs.existsSync(imagePath)) return "";
-    const ext = path.extname(imagePath).replace(".", "");
-    const buffer = fs.readFileSync(imagePath);
-    return `data:image/${ext};base64,${buffer.toString("base64")}`;
-  }
-
-  async generateCards(excelFilePath: string): Promise<string> {
-    if (!this.browser) throw new Error("Browser not initialized");
-
-    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      if (file.endsWith(".pdf") || file.endsWith(".zip")) {
-        fs.unlinkSync(path.join(OUTPUT_DIR, file));
-      }
-    });
-
-    const workbook = xlsx.readFile(excelFilePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
-
-    const total = rows.length;
-    let processed = 0;
-
-    for (const row of rows) {
-      const tipo = this.normalizeType(row.tipo);
-      if (!tipo) continue;
-
-      const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
-      if (!fs.existsSync(templatePath)) continue;
-
-      let html = fs.readFileSync(templatePath, "utf8");
-
-      // ================================
-      // REGRA INTELIGENTE DO VALOR
-      // ================================
-      let valorFinal = String(row.valor ?? "").trim();
-
-      if (tipo === "promocao") {
-        // mantém exatamente como está
-        valorFinal = valorFinal;
-      }
-
-      if (["cupom", "queda", "bc"].includes(tipo)) {
-
-        // mantém apenas números e vírgula
-        valorFinal = valorFinal.replace(/[^0-9,]/g, "");
-
-        // mantém apenas a primeira vírgula
-        const partes = valorFinal.split(",");
-        if (partes.length > 2) {
-          valorFinal = partes[0] + "," + partes.slice(1).join("");
-        }
-
-        // remove vírgula no início
-        if (valorFinal.startsWith(",")) {
-          valorFinal = valorFinal.substring(1);
-        }
-
-        // remove vírgula no final
-        if (valorFinal.endsWith(",")) {
-          valorFinal = valorFinal.slice(0, -1);
-        }
-      }
-
-      // ================================
-      // LOGO PADRÃO
-      // ================================
-      let logoFile =
-        row.logo && String(row.logo).trim() !== ""
-          ? String(row.logo).trim()
-          : "blank.png";
-
-      const logoBase64 = this.imageToBase64(
-        path.join(LOGOS_DIR, logoFile)
-      );
-
-      // ================================
-      // SELO
-      // ================================
-      const seloBase64 = row.selo
-        ? this.imageToBase64(
-            path.join(
-              SELOS_DIR,
-              row.selo.toLowerCase() === "nova"
-                ? "acaonova.png"
-                : row.selo.toLowerCase() === "renovada"
-                ? "acaorenovada.png"
-                : ""
-            )
-          )
-        : "";
-
-      html = html
-        .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
-        .replaceAll("{{VALOR}}", valorFinal)
-        .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
-        .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-        .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
-        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
-        .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
-        .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
-        .replaceAll("{{LOGO}}", logoBase64)
-        .replaceAll("{{SELO}}", seloBase64);
-
-      const tmpHtmlPath = path.join(TMP_DIR, `card_${processed + 1}.html`);
-      fs.writeFileSync(tmpHtmlPath, html);
-
-      const page = await this.browser.newPage();
-      await page.setViewport({ width: 700, height: 1058 });
-
-      await page.goto(`file://${tmpHtmlPath}`, {
-        waitUntil: "networkidle0",
-      });
-
-      const ordem = row.ordem ? String(row.ordem).trim() : processed + 1;
-      const pdfName = `${ordem}_${tipo}.pdf`;
-      const pdfPath = path.join(OUTPUT_DIR, pdfName);
-
-      await page.pdf({
-        path: pdfPath,
-        width: "700px",
-        height: "1058px",
-        printBackground: true,
-      });
-
-      await page.close();
-
-      processed++;
-
-      this.emit("progress", {
-        processed,
-        total,
-        percentage: Math.round((processed / total) * 100),
-      });
-    }
-
-    const zipPath = path.join(OUTPUT_DIR, "cards.zip");
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-
-    archive.pipe(output);
-
-    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      if (file.endsWith(".pdf")) {
-        archive.file(path.join(OUTPUT_DIR, file), { name: file });
-      }
-    });
-
-    await archive.finalize();
-
-    return zipPath;
-  }
-
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
-  }
-}
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+});
