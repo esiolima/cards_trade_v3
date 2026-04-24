@@ -228,6 +228,8 @@ export class CardGenerator extends EventEmitter {
         this.emit("progress", { processed, total, percentage: Math.round((processed / total) * 100) });
       }));
     }
+    return cards;
+  }
 
     return cards;
   }
