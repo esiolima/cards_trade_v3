@@ -4,7 +4,6 @@ import cors from "cors";
 import { createServer } from "http";
 import multer from "multer";
 import { CardGenerator } from "../cardGenerator";
-import net from "net";
 import path from "path";
 import fs from "fs";
 import { Server as SocketIOServer } from "socket.io";
@@ -13,7 +12,7 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // Aumentar o limite de tamanho do corpo da requisição para lidar com imagens e textos grandes
+  // Limite de tamanho para lidar com assets e base64
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -23,11 +22,16 @@ async function startServer() {
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
   }));
 
+  // Servir a pasta output como estática para o navegador acessar o preview.html e o pdf
+  const OUTPUT_DIR = path.join(process.cwd(), "output");
+  if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  app.use("/output", express.static(OUTPUT_DIR));
+
   const upload = multer({ dest: "uploads/" });
   const generator = new CardGenerator();
   await generator.initialize();
 
-  // Rota de API tradicional para processamento de planilha
+  // Rota para processamento de planilha
   app.post("/api/process-excel", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
@@ -38,7 +42,7 @@ async function startServer() {
       const permanentPath = path.join(uploadsDir, "current_planilha.xlsx");
       fs.copyFileSync(req.file.path, permanentPath);
 
-      const cards = await generator.processExcel(req.file.path, req.file.originalname);
+      const cards = await generator.processExcel(req.file.path);
       fs.unlinkSync(req.file.path);
       
       res.json({ cards });
@@ -48,7 +52,7 @@ async function startServer() {
     }
   });
 
-  // Rota para download do ZIP
+  // Rota para download do ZIP de cards individuais
   app.get("/api/download-zip", async (req, res) => {
     try {
       const zipPath = await generator.generateZip();
@@ -59,21 +63,11 @@ async function startServer() {
     }
   });
 
-  // Rota para gerar o jornal consolidado
-  app.post("/api/generate-jornal", upload.single("header"), async (req, res) => {
+  // PASSO 1: Gerar Preview HTML Interativo
+  app.post("/api/generate-jornal-preview", upload.single("header"), async (req, res) => {
     try {
-      // O multer coloca os campos de texto no req.body e o arquivo no req.file
       const { backgroundColor, categoryBoxColor, footerText } = req.body;
-      let headerPath = req.file ? req.file.path : undefined;
-
-      if (req.file) {
-        const headerExt = path.extname(req.file.originalname || req.file.filename || ".png");
-        const persistedHeaderDir = path.join(process.cwd(), "tmp");
-        if (!fs.existsSync(persistedHeaderDir)) fs.mkdirSync(persistedHeaderDir, { recursive: true });
-        const persistedHeaderPath = path.join(persistedHeaderDir, `last_header${headerExt}`);
-        fs.copyFileSync(req.file.path, persistedHeaderPath);
-        headerPath = persistedHeaderPath;
-      }
+      const headerPath = req.file ? req.file.path : undefined;
 
       console.log("Iniciando geração do jornal com as opções:", { 
         backgroundColor, 
@@ -82,20 +76,31 @@ async function startServer() {
         hasHeader: !!headerPath 
       });
 
-      const pdfPath = await generator.generateJornal({
+      const previewUrl = await generator.generateJornalPreview({
         headerPath,
         backgroundColor: backgroundColor || "#1a365d",
         categoryBoxColor: categoryBoxColor || "#2563eb",
         footerText: footerText || ""
       });
 
-      res.download(pdfPath, path.basename(pdfPath), (err) => {
+      res.download(pdfPath, "jornal_ofertas.pdf", (err) => {
         if (err) console.error("Erro ao enviar PDF:", err);
-        if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        if (headerPath && fs.existsSync(headerPath)) fs.unlinkSync(headerPath);
       });
     } catch (error: any) {
-      console.error("Erro na geração do jornal:", error);
-      res.status(500).json({ error: error.message || "Erro interno no servidor" });
+      console.error("Erro no preview do jornal:", error);
+      res.status(500).json({ error: error.message || "Erro interno" });
+    }
+  });
+
+  // PASSO 2: Gerar PDF Final após conferência
+  app.post("/api/generate-jornal-pdf", async (req, res) => {
+    try {
+      const pdfPath = await generator.generateFinalPDF();
+      res.json({ success: true, pdfUrl: "/output/jornal_ofertas.pdf" });
+    } catch (error: any) {
+      console.error("Erro na geração do PDF final:", error);
+      res.status(500).json({ error: error.message || "Erro interno" });
     }
   });
 
@@ -108,7 +113,7 @@ async function startServer() {
     io.emit("processProgress", data);
   });
 
-  // Roteamento inteligente de arquivos estáticos para produção no Railway
+  // Configuração de arquivos estáticos do Frontend
   const clientDistPath = path.join(process.cwd(), "dist", "public");
   const fallbackDistPath = path.join(process.cwd(), "dist", "client");
   const finalDistPath = fs.existsSync(clientDistPath) ? clientDistPath : fallbackDistPath;
@@ -116,13 +121,13 @@ async function startServer() {
   app.use(express.static(finalDistPath));
   
   app.get("*", (req, res) => {
-    if (req.path.startsWith("/api/")) return res.status(404).json({ error: "API route not found" });
+    if (req.path.startsWith("/api/") || req.path.startsWith("/output/")) return;
     
     const indexPath = path.join(finalDistPath, "index.html");
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
     } else {
-      res.status(404).send("Site não encontrado. Verifique o build do frontend.");
+      res.status(404).send("Site não encontrado. Verifique o build.");
     }
   });
 
