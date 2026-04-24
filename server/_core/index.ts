@@ -69,6 +69,13 @@ async function startServer() {
       const { backgroundColor, categoryBoxColor, footerText } = req.body;
       const headerPath = req.file ? req.file.path : undefined;
 
+      console.log("Iniciando geração do jornal com as opções:", { 
+        backgroundColor, 
+        categoryBoxColor, 
+        footerTextLength: footerText?.length,
+        hasHeader: !!headerPath 
+      });
+
       const previewUrl = await generator.generateJornalPreview({
         headerPath,
         backgroundColor: backgroundColor || "#1a365d",
@@ -76,7 +83,10 @@ async function startServer() {
         footerText: footerText || ""
       });
 
-      res.json({ success: true, previewUrl });
+      res.download(pdfPath, "jornal_ofertas.pdf", (err) => {
+        if (err) console.error("Erro ao enviar PDF:", err);
+        if (headerPath && fs.existsSync(headerPath)) fs.unlinkSync(headerPath);
+      });
     } catch (error: any) {
       console.error("Erro no preview do jornal:", error);
       res.status(500).json({ error: error.message || "Erro interno" });
